@@ -2,14 +2,12 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ponkey AI Duet - Working Magenta.js</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ponkey controller v2.6 AI</title>
     
-    <!-- Load dependencies in correct order -->
+    <!-- Magenta.js dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.58/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/1.2.8/tf.min.js"></script>
-    
-    <!-- Load Magenta.js core and music_rnn bundle -->
     <script src="https://cdn.jsdelivr.net/npm/@magenta/music@^1.0.0/es6/core.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@magenta/music@^1.0.0/es6/music_rnn.js"></script>
     
@@ -21,300 +19,423 @@
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
+            touch-action: manipulation;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
-            color: white;
+            font-weight: 300;
+            background: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             min-height: 100vh;
             padding: 20px;
         }
 
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
+            background: #d3d3d3;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         }
 
         .header {
-            text-align: center;
-            margin-bottom: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
         }
 
         .title {
-            font-size: 42px;
+            font-size: 32px;
+            color: #333;
             font-weight: 300;
-            letter-spacing: 6px;
-            margin-bottom: 10px;
-            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            letter-spacing: 4px;
         }
 
-        .subtitle {
-            font-size: 18px;
-            opacity: 0.8;
-            margin-bottom: 20px;
-        }
-
-        .model-status {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 10px 20px;
+        .connection-status {
+            padding: 8px 16px;
             border-radius: 20px;
-            display: inline-block;
-            margin-top: 10px;
+            font-size: 14px;
+            background: #e8e8e8;
+            color: #666;
         }
 
-        .status-panel {
+        .connection-status.connected {
+            background: #4a4a4a;
+            color: white;
+        }
+
+        .transport {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .transport button {
+            padding: 10px 20px;
+            border: 2px solid #999;
+            border-radius: 8px;
+            background: #e8e8e8;
+            color: #333;
+            font-size: 14px;
+            font-weight: 400;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .transport button:active {
+            transform: scale(0.95);
+        }
+
+        .transport button.active {
+            background: #666;
+            color: white;
+            border-color: #444;
+        }
+
+        #resetBtn {
+            background: #ff6666;
+            border-color: #cc4444;
+            color: white;
+        }
+
+        #resetBtn:hover {
+            background: #ff4444;
+        }
+
+        /* AI DUET Toggle */
+        .ai-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #e8e8e8;
+            padding: 5px 12px;
+            border-radius: 8px;
+        }
+
+        .ai-toggle label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 400;
+        }
+
+        .ai-toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .ai-toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .ai-toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #999;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .ai-toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .ai-toggle-switch input:checked + .ai-toggle-slider {
+            background: linear-gradient(45deg, #ff6600, #ff9933);
+        }
+
+        .ai-toggle-switch input:checked + .ai-toggle-slider.realtime {
+            background: linear-gradient(45deg, #4a90d9, #67a9e8);
+        }
+
+        .ai-toggle-switch input:checked + .ai-toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        .ai-status {
+            font-size: 10px;
+            color: #999;
+            margin-left: 4px;
+        }
+
+        .ai-status.ready {
+            color: #4a4a4a;
+        }
+
+        .ai-status.loading {
+            color: #ff9933;
+        }
+
+        /* AI Setup Progress */
+        .ai-setup-bar {
+            height: 3px;
+            background: #ccc;
+            border-radius: 2px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .ai-setup-bar.visible {
+            display: block;
+        }
+
+        .ai-setup-progress {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ff6600, #ff9933);
+            transition: width 0.3s;
+        }
+
+        /* AI Settings Panel */
+        .ai-settings-panel {
+            background: #c8c8c8;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .ai-settings-panel.visible {
+            display: block;
+        }
+
+        .ai-settings-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
         }
 
-        .status-card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
+        .ai-setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .ai-setting-group label {
+            font-size: 11px;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .ai-setting-group input[type="range"] {
+            width: 100%;
+        }
+
+        .ai-setting-group select {
+            padding: 5px 8px;
+            border: 1px solid #999;
+            border-radius: 4px;
+            background: white;
+            font-size: 12px;
+        }
+
+        .ai-setting-value {
+            font-size: 11px;
+            color: #666;
+            text-align: right;
+        }
+
+        .bpm-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #e8e8e8;
+            padding: 5px 15px;
+            border-radius: 8px;
+        }
+
+        .bpm-control input {
+            width: 120px;
+        }
+
+        .bpm-display {
+            font-weight: 400;
+            color: #333;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .soundset-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #e8e8e8;
+            padding: 5px 12px;
+            border-radius: 8px;
+        }
+
+        .soundset-selector label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 400;
+        }
+
+        .soundset-selector select {
+            padding: 4px 8px;
+            border: 1px solid #999;
+            border-radius: 4px;
+            background: white;
+            color: #333;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .round-keys-container {
+            background: #bbb;
             border-radius: 15px;
             padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 30px;
         }
 
-        .status-title {
-            font-size: 14px;
-            opacity: 0.7;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        .round-keys {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            max-width: 400px;
+            margin: 0 auto;
         }
 
-        .status-value {
-            font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .status-indicator {
-            width: 12px;
-            height: 12px;
+        .round-key {
+            aspect-ratio: 1;
             border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
+            background: #e8e8e8;
+            border: 3px solid #999;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.2s, background 0.2s, border-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #666;
+            font-weight: 400;
         }
 
-        .status-indicator.connected {
-            background: #4ecdc4;
-            box-shadow: 0 0 10px #4ecdc4;
+        .round-key:active {
+            transform: scale(0.95);
         }
 
-        .status-indicator.loading {
-            background: #ffd93d;
-            box-shadow: 0 0 10px #ffd93d;
+        .round-key.active {
+            background: #4a4a4a;
+            border-color: #333;
+            color: white;
+        }
+
+        /* Step indicator (white/current position) */
+        .round-key.indicator::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 0 10px #ffffff;
+        }
+
+        /* AI playing indicator (orange glow) */
+        .round-key.ai-playing {
+            background: #ff6600 !important;
+            border-color: #ff4400 !important;
+            color: white !important;
+            box-shadow: 0 0 20px #ff6600, 0 0 40px #ff660066;
+            animation: aiGlow 0.5s ease-out;
+        }
+
+        @keyframes aiGlow {
+            0% { box-shadow: 0 0 0 rgba(255, 102, 0, 0); }
+            50% { box-shadow: 0 0 30px rgba(255, 102, 0, 0.9), 0 0 60px rgba(255, 102, 0, 0.5); }
+            100% { box-shadow: 0 0 20px #ff6600, 0 0 40px #ff660066; }
+        }
+
+        .square-keys {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .square-key {
+            padding: 15px 10px;
+            background: #e8e8e8;
+            border: 2px solid #999;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 400;
+            color: #555;
+            transition: transform 0.2s, background 0.2s;
+            position: relative;
+        }
+
+        .square-key:active {
+            transform: scale(0.95);
+        }
+
+        .square-key.selected {
+            background: #666;
+            color: white;
+            border-color: #444;
+        }
+
+        .square-key.recording {
+            background: #ff4444;
+            color: white;
+            border-color: #cc0000;
             animation: pulse 1s infinite;
-        }
-
-        .status-indicator.disconnected {
-            background: #ff6b6b;
-            box-shadow: 0 0 10px #ff6b6b;
         }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.7; }
         }
 
-        .controls {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-bottom: 40px;
+        @media (min-width: 768px) {
+            .square-keys {
+                grid-template-columns: repeat(8, 1fr);
+            }
         }
 
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 25px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-        }
-
-        .btn:active {
-            transform: scale(0.95);
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn.primary {
-            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-        }
-
-        .btn.secondary {
-            background: linear-gradient(45deg, #4ecdc4, #44a08d);
-        }
-
-        .btn.danger {
-            background: linear-gradient(45deg, #ff6b6b, #c44569);
-        }
-
-        .ai-panel {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 40px;
-            border: 2px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .ai-title {
-            font-size: 24px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .ai-settings {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .setting-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .setting-label {
-            font-size: 12px;
-            opacity: 0.8;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .setting-input {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 8px;
+        .debug-log {
+            margin-top: 20px;
             padding: 10px;
-            color: white;
-            font-size: 14px;
-        }
-
-        .setting-input:focus {
-            outline: none;
-            border-color: #4ecdc4;
-            box-shadow: 0 0 10px rgba(78, 205, 196, 0.3);
-        }
-
-        .select {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 8px;
-            padding: 10px;
-            color: white;
-        }
-
-        .visualization {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-
-        .viz-panel {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            padding: 20px;
-            min-height: 200px;
-        }
-
-        .viz-title {
-            font-size: 16px;
-            margin-bottom: 15px;
-            opacity: 0.8;
-        }
-
-        .piano-roll {
-            display: grid;
-            grid-template-columns: repeat(16, 1fr);
-            gap: 2px;
-            height: 120px;
-        }
-
-        .note-bar {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 2px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .note-bar.active {
-            background: linear-gradient(to top, #4ecdc4, #44a08d);
-            animation: noteGlow 0.5s ease-out;
-        }
-
-        .note-bar.ai-response {
-            background: linear-gradient(to top, #ff6b6b, #ee5a24);
-            animation: aiGlow 0.5s ease-out;
-        }
-
-        @keyframes noteGlow {
-            0% { box-shadow: 0 0 0 rgba(78, 205, 196, 0); }
-            50% { box-shadow: 0 0 20px rgba(78, 205, 196, 0.8); }
-            100% { box-shadow: 0 0 0 rgba(78, 205, 196, 0); }
-        }
-
-        @keyframes aiGlow {
-            0% { box-shadow: 0 0 0 rgba(255, 107, 107, 0); }
-            50% { box-shadow: 0 0 20px rgba(255, 107, 107, 0.8); }
-            100% { box-shadow: 0 0 0 rgba(255, 107, 107, 0); }
-        }
-
-        .log-panel {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 15px;
-            padding: 20px;
-            height: 300px;
-            overflow-y: auto;
+            background: #333;
+            color: #0f0;
             font-family: monospace;
-            font-size: 12px;
+            font-size: 11px;
+            height: 150px;
+            overflow-y: auto;
+            border-radius: 8px;
+            display: none;
         }
 
-        .log-entry {
-            margin-bottom: 5px;
-            opacity: 0.8;
-        }
-
-        .log-entry.ai {
-            color: #ff6b6b;
-        }
-
-        .log-entry.midi {
-            color: #4ecdc4;
-        }
-
-        .log-entry.ponkey {
-            color: #ffd93d;
-        }
-
-        .log-entry.keyboard {
-            color: #a29bfe;
+        .debug-log.visible {
+            display: block;
         }
 
         .modal {
@@ -324,11 +445,10 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(5px);
-            z-index: 1000;
+            background: rgba(0,0,0,0.5);
             justify-content: center;
             align-items: center;
+            z-index: 1000;
         }
 
         .modal.show {
@@ -336,602 +456,1064 @@
         }
 
         .modal-content {
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            border-radius: 20px;
-            padding: 40px;
-            max-width: 500px;
-            width: 90%;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .modal-title {
-            font-size: 24px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .device-list {
-            max-height: 200px;
-            overflow-y: auto;
-            margin: 20px 0;
-        }
-
-        .device-item {
-            padding: 10px;
-            margin: 5px 0;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .device-item:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .loading-section {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
+            background: white;
             padding: 30px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .progress-container {
-            width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            overflow: hidden;
-            margin: 20px 0;
-        }
-
-        .progress-bar {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #4ecdc4, #45b7d1, #667eea);
-            border-radius: 4px;
-            transition: width 0.3s ease;
-        }
-
-        .progress-status {
-            font-size: 14px;
-            opacity: 0.8;
-        }
-
-        .model-reload-section {
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(255, 107, 107, 0.2);
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .model-reload-section p {
-            margin-bottom: 10px;
-            color: #ffd93d;
-        }
-
-        /* Virtual Keyboard Styles */
-        .keyboard-section {
-            background: rgba(255, 255, 255, 0.05);
             border-radius: 15px;
-            padding: 20px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-content h2 {
             margin-bottom: 20px;
-        }
-
-        .keyboard-section h3 {
-            margin-bottom: 15px;
-            text-align: center;
-        }
-
-        .virtual-keyboard {
-            display: flex;
-            justify-content: center;
-            position: relative;
-            height: 180px;
-            margin: 20px 0;
-        }
-
-        .keyboard-container {
-            position: relative;
-            display: flex;
-        }
-
-        .white-key {
-            width: 50px;
-            height: 160px;
-            background: linear-gradient(to bottom, #fff, #e8e8e8);
-            border: 1px solid #999;
-            border-radius: 0 0 6px 6px;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            align-items: center;
-            padding-bottom: 10px;
-            cursor: pointer;
-            transition: all 0.1s;
-            margin: 0 2px;
-        }
-
-        .white-key:hover {
-            background: linear-gradient(to bottom, #f0f0f0, #ddd);
-        }
-
-        .white-key.pressed {
-            background: linear-gradient(to bottom, #4ecdc4, #44a08d);
-            transform: translateY(2px);
-        }
-
-        .white-key .note-name {
             color: #333;
-            font-size: 14px;
-            font-weight: bold;
+            font-weight: 300;
         }
 
-        .white-key .key-label {
-            color: #666;
-            font-size: 18px;
-            margin-top: 5px;
-            text-transform: uppercase;
-        }
-
-        .black-key {
-            position: absolute;
-            top: 0;
-            width: 32px;
-            height: 100px;
-            background: linear-gradient(to bottom, #333, #000);
-            border: 1px solid #000;
-            border-radius: 0 0 4px 4px;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            align-items: center;
-            padding-bottom: 8px;
-            cursor: pointer;
-            transition: all 0.1s;
-            z-index: 10;
-        }
-
-        .black-key:hover {
-            background: linear-gradient(to bottom, #444, #111);
-        }
-
-        .black-key.pressed {
-            background: linear-gradient(to bottom, #ff6b6b, #ee5a24);
-            transform: translateY(2px);
-        }
-
-        .black-key .note-name {
-            color: #fff;
-            font-size: 10px;
-        }
-
-        .black-key .key-label {
-            color: #ccc;
-            font-size: 14px;
-            margin-top: 3px;
-            text-transform: uppercase;
-        }
-
-        /* Black key positions - between white keys */
-        .black-key[data-note="1"] { left: 36px; }   /* C# between C and D */
-        .black-key[data-note="3"] { left: 90px; }   /* D# between D and E */
-        .black-key[data-note="6"] { left: 198px; }  /* F# between F and G */
-        .black-key[data-note="8"] { left: 252px; }  /* G# between G and A */
-        .black-key[data-note="10"] { left: 306px; } /* A# between A and B */
-
-        .keyboard-hint {
-            text-align: center;
-            opacity: 0.7;
-            font-size: 14px;
-            margin-top: 10px;
-        }
-
-        .octave-control {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .octave-btn {
-            padding: 8px 16px;
+        .modal-content button {
+            padding: 12px 30px;
             border: none;
-            border-radius: 5px;
-            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: #4a4a4a;
             color: white;
-            cursor: pointer;
             font-size: 16px;
+            font-weight: 300;
+            cursor: pointer;
+            margin: 10px;
         }
 
-        .octave-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
+        .modal-content button:hover {
+            background: #333;
         }
 
-        .octave-display {
-            font-size: 18px;
-            min-width: 100px;
+        /* Keyboard hint */
+        .keyboard-hint {
+            font-size: 10px;
+            color: #888;
             text-align: center;
-        }
-
-        @media (max-width: 768px) {
-            .visualization {
-                grid-template-columns: 1fr;
-            }
-            
-            .status-panel {
-                grid-template-columns: 1fr;
-            }
-
-            .white-key {
-                width: 38px;
-                height: 130px;
-            }
-
-            .black-key {
-                width: 26px;
-                height: 80px;
-            }
-
-            /* Adjusted positions for mobile */
-            .black-key[data-note="1"] { left: 28px; }
-            .black-key[data-note="3"] { left: 70px; }
-            .black-key[data-note="6"] { left: 154px; }
-            .black-key[data-note="8"] { left: 196px; }
-            .black-key[data-note="10"] { left: 238px; }
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1 class="title">PONKEY AI DUET</h1>
+            <div class="title">PONKEY</div>
+            <div class="connection-status" id="connectionStatus">未接続</div>
+        </div>
 
-            <div class="model-status" id="modelStatus">
-                <span class="status-indicator loading" id="modelIndicator"></span>
-                <span id="modelStatusText">Loading dependencies...</span>
+        <div class="transport">
+            <button id="playBtn">PLAY</button>
+            <button id="stopBtn">STOP</button>
+            <button id="resetBtn">RESET</button>
+            <div class="bpm-control">
+                <label>BPM</label>
+                <input type="range" id="bpmSlider" min="60" max="200" value="100">
+                <span class="bpm-display" id="bpmDisplay">100</span>
+            </div>
+            <button id="tapBtn">TAP</button>
+            <button id="debugBtn">DEBUG</button>
+            <div class="soundset-selector">
+                <label>SOUND</label>
+                <select id="soundsetSelector">
+                    <option value="0">STANDARD</option>
+                    <option value="1">8BIT</option>
+                    <option value="2">UNIQUE</option>
+                </select>
+            </div>
+            <div class="ai-toggle">
+                <label>AI DUET</label>
+                <label class="ai-toggle-switch">
+                    <input type="checkbox" id="aiDuetToggle">
+                    <span class="ai-toggle-slider"></span>
+                </label>
+                <span class="ai-status loading" id="aiStatus">loading...</span>
+            </div>
+            <div class="ai-toggle">
+                <label>Realtime</label>
+                <label class="ai-toggle-switch">
+                    <input type="checkbox" id="realtimeActToggle" checked>
+                    <span class="ai-toggle-slider realtime"></span>
+                </label>
             </div>
         </div>
 
-        <div class="keyboard-section">
-            <div class="virtual-keyboard">
-                <div class="keyboard-container">
-                    <!-- White Keys -->
-                    <div class="white-key" data-note="0">
-                        <span class="note-name">C</span>
-                        <span class="key-label">A</span>
-                    </div>
-                    <div class="white-key" data-note="2">
-                        <span class="note-name">D</span>
-                        <span class="key-label">S</span>
-                    </div>
-                    <div class="white-key" data-note="4">
-                        <span class="note-name">E</span>
-                        <span class="key-label">D</span>
-                    </div>
-                    <div class="white-key" data-note="5">
-                        <span class="note-name">F</span>
-                        <span class="key-label">F</span>
-                    </div>
-                    <div class="white-key" data-note="7">
-                        <span class="note-name">G</span>
-                        <span class="key-label">G</span>
-                    </div>
-                    <div class="white-key" data-note="9">
-                        <span class="note-name">A</span>
-                        <span class="key-label">H</span>
-                    </div>
-                    <div class="white-key" data-note="11">
-                        <span class="note-name">B</span>
-                        <span class="key-label">J</span>
-                    </div>
-                    <div class="white-key" data-note="12">
-                        <span class="note-name">C</span>
-                        <span class="key-label">K</span>
-                    </div>
-                    <!-- Black Keys (positioned absolutely) -->
-                    <div class="black-key" data-note="1">
-                        <span class="note-name">C#</span>
-                        <span class="key-label">W</span>
-                    </div>
-                    <div class="black-key" data-note="3">
-                        <span class="note-name">D#</span>
-                        <span class="key-label">E</span>
-                    </div>
-                    <div class="black-key" data-note="6">
-                        <span class="note-name">F#</span>
-                        <span class="key-label">T</span>
-                    </div>
-                    <div class="black-key" data-note="8">
-                        <span class="note-name">G#</span>
-                        <span class="key-label">Y</span>
-                    </div>
-                    <div class="black-key" data-note="10">
-                        <span class="note-name">A#</span>
-                        <span class="key-label">U</span>
-                    </div>
+        <div class="ai-setup-bar" id="aiSetupBar">
+            <div class="ai-setup-progress" id="aiSetupProgress"></div>
+        </div>
+
+        <div class="ai-settings-panel" id="aiSettingsPanel">
+            <div class="ai-settings-grid">
+                <div class="ai-setting-group">
+                    <label>Response Delay</label>
+                    <input type="range" id="responseDelay" min="300" max="2000" value="800">
+                    <span class="ai-setting-value" id="responseDelayValue">800ms</span>
                 </div>
-            </div>
-            <div class="octave-control">
-                <button class="octave-btn" id="octaveDown">◀ -1</button>
-                <span class="octave-display">Octave: <span id="currentOctave">4</span></span>
-                <button class="octave-btn" id="octaveUp">+1 ▶</button>
-            </div>
-            <p class="keyboard-hint">Use Z/X to change octave, or click the buttons above</p>
-        </div>
-
-        <div class="loading-section" id="loadingSection">
-            <h3 style="margin-bottom: 15px;">🚀 Initializing...</h3>
-            <div class="progress-container">
-                <div class="progress-bar" id="progressBar"></div>
-            </div>
-            <div class="progress-status" id="progressStatus">Checking libraries...</div>
-        </div>
-
-
-        <div class="status-panel">
-            <div class="status-card">
-                <div class="status-title">MIDI / Keyboard Input</div>
-                <div class="status-value">
-                    <span class="status-indicator connected" id="midiIndicator"></span>
-                    <span id="midiStatus">Keyboard Ready</span>
+                <div class="ai-setting-group">
+                    <label>Temperature</label>
+                    <input type="range" id="temperature" min="0.3" max="1.5" step="0.1" value="0.8">
+                    <span class="ai-setting-value" id="temperatureValue">0.8</span>
                 </div>
-                <div id="midiDeviceName">Computer Keyboard Active</div>
-            </div>
-
-            <div class="status-card">
-                <div class="status-title">Ponkey Device</div>
-                <div class="status-value">
-                    <span class="status-indicator disconnected" id="ponkeyIndicator"></span>
-                    <span id="ponkeyStatus">Disconnected</span>
+                <div class="ai-setting-group">
+                    <label>Response Length</label>
+                    <input type="range" id="responseSteps" min="4" max="32" value="12">
+                    <span class="ai-setting-value" id="responseStepsValue">12 steps</span>
                 </div>
-                <div id="ponkeyDeviceName">No device connected</div>
-            </div>
-
-            <div class="status-card">
-                <div class="status-title">Activity</div>
-                <div class="status-value" id="activityCounter">0</div>
-                <div>Notes played</div>
-            </div>
-        </div>
-
-        <div class="controls">
-            <button class="btn primary" id="connectMidiBtn">Connect MIDI</button>
-            <button class="btn secondary" id="connectPonkeyBtn">Connect Ponkey</button>
-            <button class="btn" id="startDuetBtn" disabled>Start AI Duet</button>
-            <button class="btn" id="stopDuetBtn" disabled>Stop Duet</button>
-            <button class="btn danger" id="resetBtn">Reset</button>
-        </div>
-
-        <div class="ai-panel">
-            <h3 class="ai-title">🎷 AI Configuration</h3>
-            <div class="ai-settings">
-                <div class="setting-group">
-                    <label class="setting-label">AI Model</label>
-                    <select class="select" id="aiModel">
-                        <option value="melody_rnn">MelodyRNN (Basic)</option>
-                        <option value="attention_rnn">AttentionRNN (Long context)</option>
-                        <option value="improv_rnn" selected>ImprovRNN (Jazz/Chord-aware)</option>
+                <div class="ai-setting-group">
+                    <label>Octave</label>
+                    <select id="keyboardOctave">
+                        <option value="3">3</option>
+                        <option value="4" selected>4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
                     </select>
                 </div>
-                <div class="setting-group" id="chordProgressionGroup">
-                    <label class="setting-label">Chord Progression</label>
-                    <select class="select" id="chordProgression">
-                        <option value="ii-V-I">ii-V-I (Jazz Standard)</option>
-                        <option value="I-vi-ii-V">I-vi-ii-V (Turnaround)</option>
-                        <option value="blues">12-Bar Blues</option>
-                        <option value="rhythm">Rhythm Changes</option>
-                        <option value="modal">Modal (Dorian)</option>
-                    </select>
-                </div>
-                <div class="setting-group">
-                    <label class="setting-label">Temperature (Creativity)</label>
-                    <input type="range" class="setting-input" id="temperature" min="0.3" max="1.5" step="0.1" value="1.1">
-                    <span id="temperatureValue">1.1 🎲</span>
-                </div>
-                <div class="setting-group">
-                    <label class="setting-label">Response Delay (ms)</label>
-                    <input type="range" class="setting-input" id="responseDelay" min="300" max="2000" value="800">
-                    <span id="responseDelayValue">800ms</span>
-                </div>
-                <div class="setting-group">
-                    <label class="setting-label">Response Length</label>
-                    <input type="range" class="setting-input" id="responseSteps" min="8" max="64" value="24">
-                    <span id="responseStepsValue">24 steps</span>
-                </div>
-                <div class="setting-group">
-                    <label class="setting-label">Swing Amount</label>
-                    <input type="range" class="setting-input" id="swingAmount" min="0" max="100" value="60">
-                    <span id="swingAmountValue">60% 🎺</span>
-                </div>
             </div>
-            <div class="model-reload-section" id="modelReloadSection" style="display: none;">
-                <p>⚠️ Model change requires reload</p>
-                <button class="btn primary" id="reloadModelBtn">Reload Model</button>
-            </div>
+            <div class="keyboard-hint">🎹 Keys: A-K (notes), Z/X (octave ±)</div>
         </div>
 
-        <div class="visualization">
-            <div class="viz-panel">
-                <h4 class="viz-title">Piano Roll (Your Input = Blue, AI Response = Red)</h4>
-                <div class="piano-roll" id="pianoRoll"></div>
-            </div>
-            <div class="viz-panel">
-                <h4 class="viz-title">Activity Log</h4>
-                <div class="log-panel" id="logPanel"></div>
-            </div>
+        <div class="round-keys-container">
+            <div class="round-keys" id="roundKeys"></div>
         </div>
+
+        <div class="square-keys" id="squareKeys"></div>
+
+        <div class="debug-log" id="debugLog"></div>
     </div>
 
-    <!-- MIDI Selection Modal -->
-    <div class="modal" id="midiModal">
+    <div class="modal" id="connectionModal">
         <div class="modal-content">
-            <h3 class="modal-title">Select MIDI Device</h3>
-            <div class="device-list" id="midiDeviceList"></div>
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                <button class="btn" id="cancelMidiBtn">Cancel</button>
-                <button class="btn primary" id="refreshMidiBtn">Refresh</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Ponkey Connection Modal -->
-    <div class="modal" id="ponkeyModal">
-        <div class="modal-content">
-            <h3 class="modal-title">Connect to Ponkey</h3>
-            <p style="margin: 20px 0; opacity: 0.8;">Searching for Ponkey devices...</p>
-            <div style="display: flex; gap: 10px; justify-content: center;">
-                <button class="btn" id="cancelPonkeyBtn">Cancel</button>
-                <button class="btn primary" id="connectPonkeyDeviceBtn">Connect</button>
-            </div>
+            <h2>Connect PONKEY</h2>
+            <button id="connectBtn">Connect</button>
+            <button id="closeModalBtn">Cancel</button>
         </div>
     </div>
 
     <script>
-        // Global variables that will be available after libraries load
-        let magentaModel = null;
-        let isModelLoaded = false;
-        let player = null;
-        let currentModelType = 'improv_rnn';
-
-        // Model URLs
-        const MODEL_URLS = {
-            'melody_rnn': 'https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/melody_rnn',
-            'attention_rnn': 'https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/attention_rnn',
-            'improv_rnn': 'https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv'
+        // ========== CONSTANTS ==========
+        const CONSTANTS = {
+            SERVICE_UUID: '03b80e5a-ede8-4b33-a751-6ce34ec4c700',
+            CHARACTERISTIC_UUID: '7772e5db-3868-4112-a1a9-f2669d106bf3',
+            MODE_NAMES: ['KICK', 'SNARE', 'HAT', 'PERC', 'PAD', 'LEAD', 'PLUCK', 'BELL'],
+            TAP_TIMEOUT: 2000,
+            LONG_PRESS_DURATION: 500,
+            CC_BAR_SYNC: 0x54,
+            CC_RECORDING_MODE: 0x53,
+            SOLENOID_DURATION: 50
         };
 
-        // Chord progressions (MIDI pitch classes for each chord)
-        const CHORD_PROGRESSIONS = {
-            'ii-V-I': [
-                { chord: 'Dm7', steps: 8 },
-                { chord: 'G7', steps: 8 },
-                { chord: 'Cmaj7', steps: 16 }
-            ],
-            'I-vi-ii-V': [
-                { chord: 'Cmaj7', steps: 8 },
-                { chord: 'Am7', steps: 8 },
-                { chord: 'Dm7', steps: 8 },
-                { chord: 'G7', steps: 8 }
-            ],
-            'blues': [
-                { chord: 'C7', steps: 8 },
-                { chord: 'C7', steps: 8 },
-                { chord: 'C7', steps: 8 },
-                { chord: 'C7', steps: 8 },
-                { chord: 'F7', steps: 8 },
-                { chord: 'F7', steps: 8 },
-                { chord: 'C7', steps: 8 },
-                { chord: 'C7', steps: 8 },
-                { chord: 'G7', steps: 8 },
-                { chord: 'F7', steps: 8 },
-                { chord: 'C7', steps: 8 },
-                { chord: 'G7', steps: 8 }
-            ],
-            'rhythm': [
-                { chord: 'Cmaj7', steps: 4 },
-                { chord: 'A7', steps: 4 },
-                { chord: 'Dm7', steps: 4 },
-                { chord: 'G7', steps: 4 },
-                { chord: 'Em7', steps: 4 },
-                { chord: 'A7', steps: 4 },
-                { chord: 'Dm7', steps: 4 },
-                { chord: 'G7', steps: 4 }
-            ],
-            'modal': [
-                { chord: 'Dm7', steps: 16 },
-                { chord: 'Dm7', steps: 16 }
-            ]
-        };
-
-        // Keyboard to MIDI note mapping
-        // Layout:
-        //   W  E     T  Y  U
-        //  C# D#   F# G# A#
-        // A  S  D  F  G  H  J  K
-        // C  D  E  F  G  A  B  C
+        // Keyboard mapping for AI Duet
         const keyboardMap = {
-            // White keys (lower row)
-            'a': 0,   // C
-            's': 2,   // D
-            'd': 4,   // E
-            'f': 5,   // F
-            'g': 7,   // G
-            'h': 9,   // A
-            'j': 11,  // B
-            'k': 12,  // C (next octave)
-            // Black keys (upper row)
-            'w': 1,   // C#
-            'e': 3,   // D#
-            't': 6,   // F#
-            'y': 8,   // G#
-            'u': 10,  // A#
+            'a': 0, 's': 2, 'd': 4, 'f': 5, 'g': 7, 'h': 9, 'j': 11, 'k': 12,
+            'w': 1, 'e': 3, 't': 6, 'y': 8, 'u': 10
         };
-
-        // Track which keys are currently pressed
         const pressedKeys = new Set();
 
-        // Application state
+        // ========== GLOBAL STATE ==========
+        let audioContext = null;
+        let activeNodes = [];
+        let magentaModel = null;
+        let isModelLoaded = false;
+        let magentaPlayer = null;
+
         const app = {
-            midiInput: null,
-            ponkeyDevice: null,
-            ponkeyCharacteristic: null,
-            aiActive: false,
-            noteCount: 0,
-            recentNotes: [],
-            inputSequence: [],
-            audioContext: null,
-            isRecording: false,
+            connected: false,
+            device: null,
+            characteristic: null,
+            currentMode: 0,
+            currentSoundset: 0,
+            bpm: 100,
+            rhythmPatterns: [
+                Array(16).fill(false),
+                Array(16).fill(false),
+                Array(16).fill(false),
+                Array(16).fill(false)
+            ],
+            synthPatterns: Array(8).fill(null).map(() => []),
+            recordingLayer: -1,
             recordingStartTime: 0,
-            currentPitchBend: 0,
-            activeOscillators: new Map(),
-            currentOctave: 4,  // Default octave (C4 = MIDI 60)
-            keyboardEnabled: true  // Enable keyboard input by default
+            loopDuration: 0,
+            loopStartTime: 0,
+            isPlaying: false,
+            tapTimes: [],
+            // AI Duet state
+            aiDuetEnabled: false,
+            aiInputSequence: [],
+            currentOctave: 4,
+            aiResponsePending: false,
+            midiInput: null,
+            realtimeActEnabled: true  // Human input sends to PONKEY hardware
         };
 
-        // Constants
-        const PONKEY_SERVICE_UUID = '03b80e5a-ede8-4b33-a751-6ce34ec4c700';
-        const PONKEY_CHAR_UUID = '7772e5db-3868-4112-a1a9-f2669d106bf3';
-
-        // Logging function
-        function log(message, type = 'info') {
-            const logPanel = document.getElementById('logPanel');
+        // ========== LOGGING ==========
+        function log(message) {
+            const debugLog = document.getElementById('debugLog');
             const timestamp = new Date().toLocaleTimeString();
-            const entry = document.createElement('div');
-            entry.className = `log-entry ${type}`;
-            entry.textContent = `[${timestamp}] ${message}`;
-            logPanel.appendChild(entry);
-            logPanel.scrollTop = logPanel.scrollHeight;
-            console.log(`[${type}] ${message}`);
+            debugLog.innerHTML += `[${timestamp}] ${message}\n`;
+            debugLog.scrollTop = debugLog.scrollHeight;
+            console.log(message);
         }
 
-        function updateModelStatus(status, text) {
-            const indicator = document.getElementById('modelIndicator');
-            const statusText = document.getElementById('modelStatusText');
+        // ========== AUDIO INIT ==========
+        function initAudio() {
+            if (audioContext) return;
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            log('Audio initialized');
+        }
+
+        function cleanupNode(node) {
+            try {
+                if (node.gain) node.gain.cancelScheduledValues(audioContext.currentTime);
+                if (node.frequency) node.frequency.cancelScheduledValues(audioContext.currentTime);
+                if (node.stop) node.stop();
+                if (node.disconnect) node.disconnect();
+            } catch (e) {}
+        }
+
+        // ========== SOUNDSET 0: STANDARD ==========
+        function playDrumSound_Standard(part, time) {
+            if (!audioContext) initAudio();
+            const now = time || audioContext.currentTime;
+
+            if (part === 0) {
+                // KICK: 音量を大幅に上げた
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.05);
+                
+                // 音量を1.0 → 2.0に増加（クリッピング防止のため上限注意）
+                gain.gain.setValueAtTime(2.0, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                
+                osc.start(now);
+                osc.stop(now + 0.5);
+                
+                activeNodes.push(osc);
+                setTimeout(() => {
+                    const index = activeNodes.indexOf(osc);
+                    if (index > -1) activeNodes.splice(index, 1);
+                    cleanupNode(osc);
+                }, 600);
+                
+            } else if (part === 1) {
+                // SNARE
+                const bufferSize = audioContext.sampleRate * 0.2;
+                const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                
+                const noise = audioContext.createBufferSource();
+                const noiseFilter = audioContext.createBiquadFilter();
+                const noiseGain = audioContext.createGain();
+                
+                noise.buffer = buffer;
+                noise.connect(noiseFilter);
+                noiseFilter.connect(noiseGain);
+                noiseGain.connect(audioContext.destination);
+                
+                noiseFilter.type = 'bandpass';
+                noiseFilter.frequency.setValueAtTime(3000, now);
+                noiseFilter.Q.setValueAtTime(1, now);
+                
+                noiseGain.gain.setValueAtTime(0.5, now);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                
+                noise.start(now);
+                noise.stop(now + 0.2);
+                
+                const osc = audioContext.createOscillator();
+                const oscGain = audioContext.createGain();
+                
+                osc.connect(oscGain);
+                oscGain.connect(audioContext.destination);
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(180, now);
+                
+                oscGain.gain.setValueAtTime(0.15, now);
+                oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                
+                osc.start(now);
+                osc.stop(now + 0.1);
+                
+                activeNodes.push(noise, osc);
+                setTimeout(() => {
+                    cleanupNode(noise);
+                    cleanupNode(osc);
+                }, 250);
+                
+            } else if (part === 2) {
+                // HAT
+                const bufferSize = audioContext.sampleRate * 0.05;
+                const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                
+                const noise = audioContext.createBufferSource();
+                const filter = audioContext.createBiquadFilter();
+                const gain = audioContext.createGain();
+                
+                noise.buffer = buffer;
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                filter.type = 'highpass';
+                filter.frequency.setValueAtTime(8000, now);
+                filter.Q.setValueAtTime(1, now);
+                
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                
+                noise.start(now);
+                noise.stop(now + 0.05);
+                
+                activeNodes.push(noise);
+                setTimeout(() => {
+                    cleanupNode(noise);
+                }, 100);
+                
+            } else if (part === 3) {
+                // PERC
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                const filter = audioContext.createBiquadFilter();
+                
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+                
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(2000, now);
+                filter.Q.setValueAtTime(5, now);
+                
+                gain.gain.setValueAtTime(0.8, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                
+                osc.start(now);
+                osc.stop(now + 0.1);
+                
+                activeNodes.push(osc);
+                setTimeout(() => {
+                    cleanupNode(osc);
+                }, 150);
+            }
+        }
+
+        function playSynthSound_Standard(note, synthType) {
+            if (!audioContext) initAudio();
+
+            const baseFreq = 440 * Math.pow(2, (note - 9) / 12);
+            const now = audioContext.currentTime;
+
+            if (synthType === 0) {
+                // PAD
+                const osc1 = audioContext.createOscillator();
+                const osc2 = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                const filter = audioContext.createBiquadFilter();
+                
+                osc1.connect(filter);
+                osc2.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc1.type = 'sawtooth';
+                osc2.type = 'sawtooth';
+                osc1.frequency.setValueAtTime(baseFreq, now);
+                osc2.frequency.setValueAtTime(baseFreq * 1.01, now);
+                
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, now);
+                filter.frequency.linearRampToValueAtTime(2000, now + 0.15);
+                filter.Q.setValueAtTime(3, now);
+                
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.15, now + 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.75);
+                
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 0.75);
+                osc2.stop(now + 0.75);
+                
+                activeNodes.push(osc1, osc2);
+                setTimeout(() => {
+                    cleanupNode(osc1);
+                    cleanupNode(osc2);
+                }, 800);
+                
+            } else if (synthType === 1) {
+                // LEAD
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                const filter = audioContext.createBiquadFilter();
+                
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(baseFreq, now);
+                
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(5000, now);
+                filter.frequency.exponentialRampToValueAtTime(1500, now + 0.3);
+                filter.Q.setValueAtTime(8, now);
+                
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.2, now + 0.005);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                
+                osc.start(now);
+                osc.stop(now + 0.6);
+                
+                activeNodes.push(osc);
+                setTimeout(() => {
+                    cleanupNode(osc);
+                }, 700);
+                
+            } else if (synthType === 2) {
+                // PLUCK
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                const filter = audioContext.createBiquadFilter();
+                
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(baseFreq, now);
+                
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(4000, now);
+                filter.frequency.exponentialRampToValueAtTime(500, now + 0.15);
+                filter.Q.setValueAtTime(2, now);
+                
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                
+                osc.start(now);
+                osc.stop(now + 0.25);
+                
+                activeNodes.push(osc);
+                setTimeout(() => {
+                    cleanupNode(osc);
+                }, 300);
+                
+            } else if (synthType === 3) {
+                // BELL
+                const osc1 = audioContext.createOscillator();
+                const osc2 = audioContext.createOscillator();
+                const osc3 = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc1.connect(gain);
+                osc2.connect(gain);
+                osc3.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc1.type = 'sine';
+                osc2.type = 'sine';
+                osc3.type = 'sine';
+                osc1.frequency.setValueAtTime(baseFreq, now);
+                osc2.frequency.setValueAtTime(baseFreq * 2.76, now);
+                osc3.frequency.setValueAtTime(baseFreq * 5.4, now);
+                
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.15, now + 0.002);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
+                
+                osc1.start(now);
+                osc2.start(now);
+                osc3.start(now);
+                osc1.stop(now + 1.2);
+                osc2.stop(now + 1.2);
+                osc3.stop(now + 1.2);
+                
+                activeNodes.push(osc1, osc2, osc3);
+                setTimeout(() => {
+                    cleanupNode(osc1);
+                    cleanupNode(osc2);
+                    cleanupNode(osc3);
+                }, 1300);
+            }
+        }
+
+        // ========== SOUNDSET 1: 8BIT ==========
+        function playDrumSound_8Bit(part, time) {
+            if (!audioContext) initAudio();
+            const now = time || audioContext.currentTime;
+
+            if (part === 0) {
+                // KICK - 8bit (音量増加)
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.08);
+                
+                gain.gain.setValueAtTime(1.6, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                
+                osc.start(now);
+                osc.stop(now + 0.15);
+                
+                activeNodes.push(osc);
+                setTimeout(() => cleanupNode(osc), 200);
+                
+            } else if (part === 1) {
+                const bufferSize = audioContext.sampleRate * 0.08;
+                const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                
+                const noise = audioContext.createBufferSource();
+                const gain = audioContext.createGain();
+                
+                noise.buffer = buffer;
+                noise.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                
+                noise.start(now);
+                noise.stop(now + 0.08);
+                
+                activeNodes.push(noise);
+                setTimeout(() => cleanupNode(noise), 100);
+                
+            } else if (part === 2) {
+                const bufferSize = audioContext.sampleRate * 0.03;
+                const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                
+                const noise = audioContext.createBufferSource();
+                const filter = audioContext.createBiquadFilter();
+                const gain = audioContext.createGain();
+                
+                noise.buffer = buffer;
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                filter.type = 'highpass';
+                filter.frequency.setValueAtTime(10000, now);
+                
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.03);
+                
+                noise.start(now);
+                noise.stop(now + 0.03);
+                
+                activeNodes.push(noise);
+                setTimeout(() => cleanupNode(noise), 50);
+                
+            } else if (part === 3) {
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(400, now + 0.06);
+                
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+                
+                osc.start(now);
+                osc.stop(now + 0.06);
+                
+                activeNodes.push(osc);
+                setTimeout(() => cleanupNode(osc), 80);
+            }
+        }
+
+        function playSynthSound_8Bit(note, synthType) {
+            if (!audioContext) initAudio();
+            const baseFreq = 440 * Math.pow(2, (note - 9) / 12);
+            const now = audioContext.currentTime;
+
+            if (synthType === 0) {
+                const osc1 = audioContext.createOscillator();
+                const osc2 = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc1.type = 'square';
+                osc2.type = 'square';
+                osc1.frequency.setValueAtTime(baseFreq, now);
+                osc2.frequency.setValueAtTime(baseFreq * 1.005, now);
+                
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.12, now + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 0.5);
+                osc2.stop(now + 0.5);
+                
+                activeNodes.push(osc1, osc2);
+                setTimeout(() => { cleanupNode(osc1); cleanupNode(osc2); }, 550);
+            } else if (synthType === 1) {
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(baseFreq, now);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+                activeNodes.push(osc);
+                setTimeout(() => cleanupNode(osc), 350);
+            } else if (synthType === 2) {
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(baseFreq, now);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+                activeNodes.push(osc);
+                setTimeout(() => cleanupNode(osc), 250);
+            } else if (synthType === 3) {
+                const osc1 = audioContext.createOscillator();
+                const osc2 = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioContext.destination);
+                osc1.type = 'square';
+                osc2.type = 'square';
+                osc1.frequency.setValueAtTime(baseFreq, now);
+                osc2.frequency.setValueAtTime(baseFreq * 2, now);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 0.6);
+                osc2.stop(now + 0.6);
+                activeNodes.push(osc1, osc2);
+                setTimeout(() => { cleanupNode(osc1); cleanupNode(osc2); }, 650);
+            }
+        }
+
+        // ========== SOUNDSET 2: UNIQUE ==========
+        function playDrumSound_Unique(part, time) {
+            if (!audioContext) initAudio();
+            const now = time || audioContext.currentTime;
+
+            if (part === 0) {
+                // KICK - FM (音量増加)
+                const carrier = audioContext.createOscillator();
+                const modulator = audioContext.createOscillator();
+                const modGain = audioContext.createGain();
+                const gain = audioContext.createGain();
+                
+                modulator.connect(modGain);
+                modGain.connect(carrier.frequency);
+                carrier.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                carrier.type = 'sine';
+                modulator.type = 'sine';
+                carrier.frequency.setValueAtTime(120, now);
+                modulator.frequency.setValueAtTime(60, now);
+                modGain.gain.setValueAtTime(80, now);
+                modGain.gain.exponentialRampToValueAtTime(0.1, now + 0.2);
+                
+                gain.gain.setValueAtTime(1.8, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                
+                carrier.start(now);
+                modulator.start(now);
+                carrier.stop(now + 0.3);
+                modulator.stop(now + 0.3);
+                
+                activeNodes.push(carrier, modulator);
+                setTimeout(() => { cleanupNode(carrier); cleanupNode(modulator); }, 350);
+            } else if (part === 1) {
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+                activeNodes.push(osc);
+                setTimeout(() => cleanupNode(osc), 200);
+            } else if (part === 2) {
+                const bufferSize = audioContext.sampleRate * 0.04;
+                const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                const noise = audioContext.createBufferSource();
+                const filter = audioContext.createBiquadFilter();
+                const gain = audioContext.createGain();
+                noise.buffer = buffer;
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioContext.destination);
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(6000, now);
+                filter.Q.setValueAtTime(10, now);
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+                noise.start(now);
+                noise.stop(now + 0.04);
+                activeNodes.push(noise);
+                setTimeout(() => cleanupNode(noise), 60);
+            } else if (part === 3) {
+                const osc1 = audioContext.createOscillator();
+                const osc2 = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioContext.destination);
+                osc1.type = 'sine';
+                osc2.type = 'sine';
+                osc1.frequency.setValueAtTime(700, now);
+                osc2.frequency.setValueAtTime(1100, now);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 0.08);
+                osc2.stop(now + 0.08);
+                activeNodes.push(osc1, osc2);
+                setTimeout(() => { cleanupNode(osc1); cleanupNode(osc2); }, 100);
+            }
+        }
+
+        function playSynthSound_Unique(note, synthType) {
+            if (!audioContext) initAudio();
+            const baseFreq = 440 * Math.pow(2, (note - 9) / 12);
+            const now = audioContext.currentTime;
+
+            if (synthType === 0) {
+                const osc1 = audioContext.createOscillator();
+                const osc2 = audioContext.createOscillator();
+                const osc3 = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                const filter = audioContext.createBiquadFilter();
+                osc1.connect(filter);
+                osc2.connect(filter);
+                osc3.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioContext.destination);
+                osc1.type = 'sawtooth';
+                osc2.type = 'sawtooth';
+                osc3.type = 'sawtooth';
+                osc1.frequency.setValueAtTime(baseFreq, now);
+                osc2.frequency.setValueAtTime(baseFreq * 0.995, now);
+                osc3.frequency.setValueAtTime(baseFreq * 1.005, now);
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(500, now);
+                filter.frequency.linearRampToValueAtTime(3000, now + 0.2);
+                filter.Q.setValueAtTime(4, now);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.12, now + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+                osc1.start(now);
+                osc2.start(now);
+                osc3.start(now);
+                osc1.stop(now + 0.8);
+                osc2.stop(now + 0.8);
+                osc3.stop(now + 0.8);
+                activeNodes.push(osc1, osc2, osc3);
+                setTimeout(() => { cleanupNode(osc1); cleanupNode(osc2); cleanupNode(osc3); }, 850);
+            } else if (synthType === 1) {
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(baseFreq, now);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+                activeNodes.push(osc);
+                setTimeout(() => cleanupNode(osc), 550);
+            } else if (synthType === 2) {
+                const osc = audioContext.createOscillator();
+                const filter = audioContext.createBiquadFilter();
+                const gain = audioContext.createGain();
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(baseFreq, now);
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(6000, now);
+                filter.frequency.exponentialRampToValueAtTime(300, now + 0.15);
+                filter.Q.setValueAtTime(3, now);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+                activeNodes.push(osc);
+                setTimeout(() => cleanupNode(osc), 250);
+            } else if (synthType === 3) {
+                const carrier = audioContext.createOscillator();
+                const modulator = audioContext.createOscillator();
+                const modGain = audioContext.createGain();
+                const gain = audioContext.createGain();
+                modulator.connect(modGain);
+                modGain.connect(carrier.frequency);
+                carrier.connect(gain);
+                gain.connect(audioContext.destination);
+                carrier.type = 'sine';
+                modulator.type = 'sine';
+                carrier.frequency.setValueAtTime(baseFreq, now);
+                modulator.frequency.setValueAtTime(baseFreq * 3.14, now);
+                modGain.gain.setValueAtTime(baseFreq * 2, now);
+                modGain.gain.exponentialRampToValueAtTime(0.1, now + 0.8);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.15, now + 0.003);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
+                carrier.start(now);
+                modulator.start(now);
+                carrier.stop(now + 1.0);
+                modulator.stop(now + 1.0);
+                activeNodes.push(carrier, modulator);
+                setTimeout(() => { cleanupNode(carrier); cleanupNode(modulator); }, 1050);
+            }
+        }
+
+        // Sound selector
+        function playDrumSound(part, time) {
+            if (app.currentSoundset === 0) playDrumSound_Standard(part, time);
+            else if (app.currentSoundset === 1) playDrumSound_8Bit(part, time);
+            else if (app.currentSoundset === 2) playDrumSound_Unique(part, time);
+        }
+
+        function playSynthSound(note, synthType) {
+            if (app.currentSoundset === 0) playSynthSound_Standard(note, synthType);
+            else if (app.currentSoundset === 1) playSynthSound_8Bit(note, synthType);
+            else if (app.currentSoundset === 2) playSynthSound_Unique(note, synthType);
+        }
+
+        // ========== MAGENTA AI ==========
+        async function initMagenta() {
+            const setupBar = document.getElementById('aiSetupBar');
+            const setupProgress = document.getElementById('aiSetupProgress');
+            const aiStatus = document.getElementById('aiStatus');
             
-            indicator.className = `status-indicator ${status}`;
-            statusText.textContent = text;
+            setupBar.classList.add('visible');
+            aiStatus.textContent = 'loading...';
+            aiStatus.classList.add('loading');
+            aiStatus.classList.remove('ready');
+            
+            try {
+                // Check libraries
+                setupProgress.style.width = '20%';
+                await delay(200);
+                
+                if (typeof Tone === 'undefined' || typeof tf === 'undefined') {
+                    throw new Error('Libraries not loaded');
+                }
+                
+                setupProgress.style.width = '40%';
+                await delay(200);
+                
+                if (typeof core === 'undefined' || typeof music_rnn === 'undefined') {
+                    throw new Error('Magenta not loaded');
+                }
+                
+                magentaPlayer = new core.Player();
+                
+                // Load model
+                setupProgress.style.width = '60%';
+                aiStatus.textContent = 'loading model...';
+                
+                magentaModel = new music_rnn.MusicRNN(
+                    'https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/melody_rnn'
+                );
+                await magentaModel.initialize();
+                
+                setupProgress.style.width = '100%';
+                isModelLoaded = true;
+                
+                aiStatus.textContent = 'ready';
+                aiStatus.classList.remove('loading');
+                aiStatus.classList.add('ready');
+                
+                log('✓ AI Model loaded');
+                
+                await delay(500);
+                setupBar.classList.remove('visible');
+                
+            } catch (error) {
+                log(`✗ AI init error: ${error.message}`);
+                aiStatus.textContent = 'error';
+                aiStatus.classList.remove('loading');
+                setupBar.classList.remove('visible');
+            }
         }
 
-        // Keyboard Input Handling
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // ========== AI DUET LOGIC ==========
+        function handleAINoteInput(midiNote, velocity) {
+            if (!app.aiDuetEnabled || !isModelLoaded) return;
+            
+            // Add to input sequence
+            const sequenceNote = {
+                pitch: midiNote,
+                startTime: app.aiInputSequence.length * 0.5,
+                endTime: (app.aiInputSequence.length + 1) * 0.5,
+                velocity: velocity
+            };
+            
+            app.aiInputSequence.push(sequenceNote);
+            
+            // Keep only last 8 notes
+            if (app.aiInputSequence.length > 8) {
+                app.aiInputSequence.shift();
+                app.aiInputSequence.forEach((note, i) => {
+                    note.startTime = i * 0.5;
+                    note.endTime = (i + 1) * 0.5;
+                });
+            }
+            
+            // Schedule AI response after enough input
+            if (app.aiInputSequence.length >= 2 && !app.aiResponsePending) {
+                scheduleAIResponse();
+            }
+        }
+
+        function scheduleAIResponse() {
+            if (app.aiResponsePending) return;
+            app.aiResponsePending = true;
+            
+            const delay = parseInt(document.getElementById('responseDelay').value);
+            
+            setTimeout(async () => {
+                await generateAIResponse();
+                app.aiResponsePending = false;
+            }, delay);
+        }
+
+        async function generateAIResponse() {
+            if (!isModelLoaded || !magentaModel || app.aiInputSequence.length === 0) {
+                return;
+            }
+
+            try {
+                const temperature = parseFloat(document.getElementById('temperature').value);
+                const steps = parseInt(document.getElementById('responseSteps').value);
+                
+                const seedSequence = {
+                    notes: app.aiInputSequence.slice(),
+                    totalTime: app.aiInputSequence.length * 0.5,
+                    ticksPerQuarter: 220
+                };
+                
+                const quantizedSeed = core.sequences.quantizeNoteSequence(seedSequence, 4);
+                const continuation = await magentaModel.continueSequence(quantizedSeed, steps, temperature);
+                
+                if (continuation && continuation.notes && continuation.notes.length > 0) {
+                    playAIResponse(continuation.notes);
+                }
+                
+            } catch (error) {
+                log(`AI error: ${error.message}`);
+            }
+        }
+
+        function playAIResponse(notes) {
+            notes.forEach((note, index) => {
+                const noteDelay = (note.startTime || index * 0.2) * 1000;
+                
+                setTimeout(() => {
+                    const ponkeyKey = note.pitch % 16;
+                    
+                    // Play sound using current synth mode
+                    if (app.currentMode >= 4) {
+                        playSynthSound(ponkeyKey, app.currentMode - 4);
+                    }
+                    
+                    // Show orange glow on round key
+                    showAIGlow(ponkeyKey);
+                    
+                    // Send to Ponkey hardware
+                    if (app.connected) {
+                        sendMIDI(0x90, ponkeyKey, 100);
+                        setTimeout(() => {
+                            sendMIDI(0x80, ponkeyKey, 0);
+                        }, CONSTANTS.SOLENOID_DURATION);
+                    }
+                    
+                }, noteDelay);
+            });
+        }
+
+        function showAIGlow(keyIndex) {
+            const keys = document.querySelectorAll('.round-key');
+            if (keys[keyIndex]) {
+                keys[keyIndex].classList.add('ai-playing');
+                setTimeout(() => {
+                    keys[keyIndex].classList.remove('ai-playing');
+                }, 400);
+            }
+        }
+
+        // ========== KEYBOARD INPUT ==========
         function initKeyboardInput() {
             document.addEventListener('keydown', handleKeyDown);
             document.addEventListener('keyup', handleKeyUp);
-            log('Computer keyboard input initialized', 'keyboard');
         }
 
         function handleKeyDown(event) {
-            // Ignore if typing in an input field
-            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
                 return;
             }
 
             const key = event.key.toLowerCase();
 
-            // Octave change with Z and X
             if (key === 'z') {
                 changeOctave(-1);
                 return;
@@ -941,25 +1523,39 @@
                 return;
             }
 
-            // Check if this key is mapped to a note
             if (keyboardMap.hasOwnProperty(key)) {
                 event.preventDefault();
                 
-                // Prevent key repeat
-                if (pressedKeys.has(key)) {
-                    return;
-                }
-                
+                if (pressedKeys.has(key)) return;
                 pressedKeys.add(key);
                 
                 const noteOffset = keyboardMap[key];
                 const midiNote = (app.currentOctave * 12) + noteOffset;
-                const velocity = 100; // Fixed velocity for keyboard
                 
-                handleNoteOn(midiNote, velocity);
-                updateVirtualKeyboard(key, true);
-                
-                log(`Keyboard: ${key.toUpperCase()} → Note ${midiNote}`, 'keyboard');
+                // Only trigger on synth modes
+                if (app.currentMode >= 4) {
+                    const ponkeyKey = midiNote % 16;
+                    
+                    // Realtime OFF: play sound from Web App
+                    // Realtime ON: mute Web App (sound comes from PONKEY hardware)
+                    if (!app.realtimeActEnabled) {
+                        playSynthSound(ponkeyKey, app.currentMode - 4);
+                    }
+                    
+                    // Show active state
+                    const keys = document.querySelectorAll('.round-key');
+                    if (keys[ponkeyKey]) {
+                        keys[ponkeyKey].classList.add('active');
+                    }
+                    
+                    // Realtime Act: send to PONKEY hardware if enabled
+                    if (app.realtimeActEnabled && app.connected) {
+                        sendMIDI(0x90, ponkeyKey, 127);
+                    }
+                    
+                    // Trigger AI
+                    handleAINoteInput(midiNote, 100);
+                }
             }
         }
 
@@ -973,8 +1569,18 @@
                 const noteOffset = keyboardMap[key];
                 const midiNote = (app.currentOctave * 12) + noteOffset;
                 
-                handleNoteOff(midiNote);
-                updateVirtualKeyboard(key, false);
+                if (app.currentMode >= 4) {
+                    const ponkeyKey = midiNote % 16;
+                    const keys = document.querySelectorAll('.round-key');
+                    if (keys[ponkeyKey]) {
+                        keys[ponkeyKey].classList.remove('active');
+                    }
+                    
+                    // Realtime Act: send note off if enabled
+                    if (app.realtimeActEnabled && app.connected) {
+                        sendMIDI(0x80, ponkeyKey, 0);
+                    }
+                }
             }
         }
 
@@ -982,1070 +1588,505 @@
             const newOctave = app.currentOctave + delta;
             if (newOctave >= 0 && newOctave <= 8) {
                 app.currentOctave = newOctave;
-                document.getElementById('currentOctave').textContent = newOctave;
-                log(`Octave changed to ${newOctave}`, 'keyboard');
+                document.getElementById('keyboardOctave').value = newOctave;
+                log(`Octave: ${newOctave}`);
             }
         }
 
-        function updateVirtualKeyboard(key, isPressed) {
-            const noteOffset = keyboardMap[key];
-            const keyElement = document.querySelector(`[data-note="${noteOffset}"]`);
-            
-            if (keyElement) {
-                if (isPressed) {
-                    keyElement.classList.add('pressed');
-                } else {
-                    keyElement.classList.remove('pressed');
-                }
-            }
-        }
-
-        function initVirtualKeyboardClicks() {
-            // White keys
-            document.querySelectorAll('.white-key').forEach(key => {
-                key.addEventListener('mousedown', (e) => {
-                    const noteOffset = parseInt(key.dataset.note);
-                    const midiNote = (app.currentOctave * 12) + noteOffset;
-                    handleNoteOn(midiNote, 100);
-                    key.classList.add('pressed');
-                });
-                
-                key.addEventListener('mouseup', (e) => {
-                    const noteOffset = parseInt(key.dataset.note);
-                    const midiNote = (app.currentOctave * 12) + noteOffset;
-                    handleNoteOff(midiNote);
-                    key.classList.remove('pressed');
-                });
-                
-                key.addEventListener('mouseleave', (e) => {
-                    if (key.classList.contains('pressed')) {
-                        const noteOffset = parseInt(key.dataset.note);
-                        const midiNote = (app.currentOctave * 12) + noteOffset;
-                        handleNoteOff(midiNote);
-                        key.classList.remove('pressed');
-                    }
-                });
-            });
-
-            // Black keys
-            document.querySelectorAll('.black-key').forEach(key => {
-                key.addEventListener('mousedown', (e) => {
-                    e.stopPropagation();
-                    const noteOffset = parseInt(key.dataset.note);
-                    const midiNote = (app.currentOctave * 12) + noteOffset;
-                    handleNoteOn(midiNote, 100);
-                    key.classList.add('pressed');
-                });
-                
-                key.addEventListener('mouseup', (e) => {
-                    const noteOffset = parseInt(key.dataset.note);
-                    const midiNote = (app.currentOctave * 12) + noteOffset;
-                    handleNoteOff(midiNote);
-                    key.classList.remove('pressed');
-                });
-                
-                key.addEventListener('mouseleave', (e) => {
-                    if (key.classList.contains('pressed')) {
-                        const noteOffset = parseInt(key.dataset.note);
-                        const midiNote = (app.currentOctave * 12) + noteOffset;
-                        handleNoteOff(midiNote);
-                        key.classList.remove('pressed');
-                    }
-                });
-            });
-
-            // Octave buttons
-            document.getElementById('octaveDown').addEventListener('click', () => changeOctave(-1));
-            document.getElementById('octaveUp').addEventListener('click', () => changeOctave(1));
-        }
-
-        // Test functions for debugging
-        function testLibraries() {
-            log('Testing library availability...', 'ai');
-            
-            if (typeof Tone !== 'undefined') {
-                log('✓ Tone.js loaded successfully', 'ai');
-            } else {
-                log('✗ Tone.js not loaded', 'ai');
-                return false;
-            }
-            
-            if (typeof tf !== 'undefined') {
-                log('✓ TensorFlow.js loaded successfully', 'ai');
-            } else {
-                log('✗ TensorFlow.js not loaded', 'ai');
-                return false;
-            }
-            
-            if (typeof core !== 'undefined') {
-                log('✓ Magenta.js core loaded successfully', 'ai');
-                player = new core.Player();
-                log('✓ Magenta player created', 'ai');
-            } else {
-                log('✗ Magenta.js core not loaded', 'ai');
-                return false;
-            }
-            
-            if (typeof music_rnn !== 'undefined') {
-                log('✓ Magenta.js music_rnn loaded successfully', 'ai');
-                return true;
-            } else {
-                log('✗ Magenta.js music_rnn not loaded', 'ai');
-                return false;
-            }
-        }
-
-        async function testModel() {
-            try {
-                log('Creating MusicRNN model...', 'ai');
-                updateModelStatus('loading', 'Initializing Model...');
-                
-                magentaModel = new music_rnn.MusicRNN('https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/melody_rnn');
-                
-                log('Initializing model...', 'ai');
-                await magentaModel.initialize();
-                
-                isModelLoaded = true;
-                updateModelStatus('connected', 'MelodyRNN Ready');
-                log('✓ MelodyRNN model initialized successfully!', 'ai');
-                updateButtonStates();
-                
-            } catch (error) {
-                log(`✗ Model initialization failed: ${error.message}`, 'ai');
-                updateModelStatus('disconnected', 'Model Failed');
-                console.error('Model error:', error);
-            }
-        }
-
-        async function testSequence() {
-            if (!isModelLoaded || !magentaModel) {
-                log('Model not loaded', 'ai');
+        // ========== EXTERNAL MIDI INPUT ==========
+        async function initExternalMIDI() {
+            if (!navigator.requestMIDIAccess) {
+                log('Web MIDI not supported');
                 return;
             }
-
-            try {
-                log('Testing sequence generation...', 'ai');
-                
-                const testSeq = {
-                    notes: [
-                        {pitch: 60, startTime: 0, endTime: 0.5},
-                        {pitch: 62, startTime: 0.5, endTime: 1.0},
-                        {pitch: 64, startTime: 1.0, endTime: 1.5},
-                        {pitch: 65, startTime: 1.5, endTime: 2.0}
-                    ],
-                    totalTime: 2.0,
-                    ticksPerQuarter: 220
-                };
-                
-                log('Test sequence created, quantizing...', 'ai');
-                
-                const quantizedSeq = core.sequences.quantizeNoteSequence(testSeq, 4);
-                
-                log('Sequence quantized successfully', 'ai');
-                log(`Quantized sequence has ${quantizedSeq.notes.length} notes`, 'ai');
-                
-                log('Calling continueSequence...', 'ai');
-                const continuation = await magentaModel.continueSequence(quantizedSeq, 8, 0.8);
-                
-                if (continuation && continuation.notes) {
-                    log(`✓ Generated ${continuation.notes.length} notes successfully!`, 'ai');
-                    
-                    if (player) {
-                        player.start(continuation);
-                        log('✓ Playing generated sequence', 'ai');
-                    }
-                } else {
-                    log('✗ No notes generated', 'ai');
-                }
-                
-            } catch (error) {
-                log(`✗ Sequence test failed: ${error.message}`, 'ai');
-                console.error('Sequence error:', error);
-            }
-        }
-
-        // Audio initialization
-        function initAudioContext() {
-            if (!app.audioContext) {
-                app.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            return app.audioContext;
-        }
-
-        // Piano sound generation with pitch bend support
-        function playPianoNote(note, velocity = 127) {
-            const audioContext = initAudioContext();
-            const now = audioContext.currentTime;
             
-            const bendRange = parseInt(document.getElementById('pitchBendRange')?.value || 2);
-            const bendedNote = note + (app.currentPitchBend * bendRange);
-            const fundamental = 440 * Math.pow(2, (bendedNote - 69) / 12);
-            const harmonics = [1, 0.5, 0.25, 0.125, 0.0625];
-            const gainNode = audioContext.createGain();
-            
-            const oscillators = [];
-            
-            harmonics.forEach((amplitude, index) => {
-                const osc = audioContext.createOscillator();
-                const harmGain = audioContext.createGain();
-                
-                osc.frequency.setValueAtTime(fundamental * (index + 1), now);
-                osc.type = 'triangle';
-                
-                harmGain.gain.setValueAtTime(amplitude * (velocity / 127) * 0.3, now);
-                harmGain.gain.exponentialRampToValueAtTime(0.001, now + 2);
-                
-                osc.connect(harmGain);
-                harmGain.connect(gainNode);
-                
-                osc.start(now);
-                osc.stop(now + 2);
-                
-                oscillators.push({ osc, gain: harmGain });
-            });
-            
-            gainNode.connect(audioContext.destination);
-            
-            app.activeOscillators.set(note, {
-                oscillators: oscillators,
-                gainNode: gainNode,
-                startTime: now,
-                baseNote: note,
-                velocity: velocity
-            });
-            
-            setTimeout(() => {
-                app.activeOscillators.delete(note);
-            }, 2100);
-        }
-
-        // Apply pitch bend to active notes
-        function applyPitchBend(bendAmount) {
-            app.currentPitchBend = bendAmount;
-            
-            const bendRangeElement = document.getElementById('pitchBendRange');
-            const bendRange = bendRangeElement ? parseInt(bendRangeElement.value) : 2;
-            const currentTime = app.audioContext?.currentTime || 0;
-            
-            app.activeOscillators.forEach((noteData, noteKey) => {
-                const bendedNote = noteData.baseNote + (bendAmount * bendRange);
-                const newFundamental = 440 * Math.pow(2, (bendedNote - 69) / 12);
-                
-                noteData.oscillators.forEach((oscData, index) => {
-                    try {
-                        const harmonic = index + 1;
-                        const newFreq = newFundamental * harmonic;
-                        
-                        if (oscData.osc.frequency && 
-                            currentTime > 0 && 
-                            newFreq > 20 && newFreq < 20000) {
-                            oscData.osc.frequency.setValueAtTime(newFreq, currentTime);
-                        }
-                    } catch (error) {
-                        console.debug('Oscillator update failed:', error.message);
-                    }
-                });
-            });
-            
-            if (Math.abs(bendAmount) > 0.01) {
-                log(`Pitch bend: ${(bendAmount * 100).toFixed(1)}% (±${bendRange} semitones)`, 'midi');
-            }
-        }
-
-        // Ponkey sound generation - Jazz Electric Piano style
-        function playPonkeySound(note, mode = 4) {
-            const audioContext = initAudioContext();
-            const now = audioContext.currentTime;
-            const fundamental = 440 * Math.pow(2, (note - 69) / 12);
-            
-            // Jazz Electric Piano (Rhodes-like) sound
-            const masterGain = audioContext.createGain();
-            const compressor = audioContext.createDynamicsCompressor();
-            
-            // FM synthesis for bell-like Rhodes tone
-            const carrier = audioContext.createOscillator();
-            const modulator = audioContext.createOscillator();
-            const modulatorGain = audioContext.createGain();
-            
-            // Carrier (main tone)
-            carrier.type = 'sine';
-            carrier.frequency.setValueAtTime(fundamental, now);
-            
-            // Modulator (creates the bell-like harmonics)
-            modulator.type = 'sine';
-            modulator.frequency.setValueAtTime(fundamental * 2, now); // 2:1 ratio for Rhodes
-            modulatorGain.gain.setValueAtTime(fundamental * 0.8, now); // Modulation depth
-            modulatorGain.gain.exponentialRampToValueAtTime(fundamental * 0.1, now + 1.5);
-            
-            // Connect FM synthesis
-            modulator.connect(modulatorGain);
-            modulatorGain.connect(carrier.frequency);
-            
-            // Add subtle chorusing for warmth (second detuned oscillator)
-            const carrier2 = audioContext.createOscillator();
-            carrier2.type = 'sine';
-            carrier2.frequency.setValueAtTime(fundamental * 1.003, now); // Slight detune
-            
-            // Tremolo for jazz feel
-            const tremolo = audioContext.createOscillator();
-            const tremoloGain = audioContext.createGain();
-            tremolo.type = 'sine';
-            tremolo.frequency.setValueAtTime(5.5, now); // Tremolo rate
-            tremoloGain.gain.setValueAtTime(0.08, now); // Subtle tremolo depth
-            
-            // Envelope - quick attack, medium sustain, smooth release
-            const envGain = audioContext.createGain();
-            envGain.gain.setValueAtTime(0, now);
-            envGain.gain.linearRampToValueAtTime(0.35, now + 0.01); // Quick attack
-            envGain.gain.exponentialRampToValueAtTime(0.2, now + 0.15); // Initial decay
-            envGain.gain.exponentialRampToValueAtTime(0.001, now + 2.5); // Release
-            
-            // Warm lowpass filter
-            const filter = audioContext.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(fundamental * 6, now);
-            filter.frequency.exponentialRampToValueAtTime(fundamental * 2, now + 1);
-            filter.Q.setValueAtTime(0.7, now);
-            
-            // Connect everything
-            carrier.connect(envGain);
-            carrier2.connect(envGain);
-            envGain.connect(filter);
-            
-            tremolo.connect(tremoloGain);
-            tremoloGain.connect(masterGain.gain);
-            
-            filter.connect(masterGain);
-            masterGain.gain.setValueAtTime(0.5, now);
-            masterGain.connect(compressor);
-            compressor.connect(audioContext.destination);
-            
-            // Start all oscillators
-            carrier.start(now);
-            carrier2.start(now);
-            modulator.start(now);
-            tremolo.start(now);
-            
-            // Stop after release
-            carrier.stop(now + 2.5);
-            carrier2.stop(now + 2.5);
-            modulator.stop(now + 2.5);
-            tremolo.stop(now + 2.5);
-        }
-
-        function testPonkeySound() {
-            log('Testing Jazz E-Piano sound...', 'ponkey');
-            playPonkeySound(60, 4);
-            log('✓ Jazz E-Piano sound played', 'ponkey');
-        }
-
-        // Update UI indicators
-        function updateIndicator(elementId, connected, text) {
-            const indicator = document.getElementById(elementId);
-            const status = document.getElementById(elementId.replace('Indicator', 'Status'));
-            
-            indicator.className = `status-indicator ${connected ? 'connected' : 'disconnected'}`;
-            if (status) status.textContent = text;
-        }
-
-        // MIDI Functions
-        async function requestMIDIAccess() {
             try {
                 const midiAccess = await navigator.requestMIDIAccess();
                 const inputs = Array.from(midiAccess.inputs.values());
                 
-                if (inputs.length === 0) {
-                    log('No MIDI devices found - using computer keyboard', 'midi');
-                    alert('No MIDI devices detected. You can use your computer keyboard instead!\n\nKeys: A S D F G H J K (white keys)\nW E T Y U (black keys)\nZ/X to change octave');
-                    return;
+                inputs.forEach(input => {
+                    input.onmidimessage = handleExternalMIDI;
+                    log(`MIDI input: ${input.name}`);
+                });
+                
+                if (inputs.length > 0) {
+                    app.midiInput = inputs[0];
                 }
-
-                showMIDIDeviceList(inputs);
             } catch (error) {
-                log(`MIDI access failed: ${error.message}`, 'midi');
-                alert('MIDI access denied. You can still use your computer keyboard!');
+                log(`MIDI error: ${error.message}`);
             }
         }
 
-        function showMIDIDeviceList(devices) {
-            const modal = document.getElementById('midiModal');
-            const deviceList = document.getElementById('midiDeviceList');
-            
-            deviceList.innerHTML = '';
-            devices.forEach(device => {
-                const item = document.createElement('div');
-                item.className = 'device-item';
-                item.textContent = device.name || `Device ${device.id}`;
-                item.onclick = () => connectMIDIDevice(device);
-                deviceList.appendChild(item);
-            });
-            
-            modal.classList.add('show');
-        }
-
-        function connectMIDIDevice(device) {
-            app.midiInput = device;
-            device.onmidimessage = handleMIDIMessage;
-            
-            updateIndicator('midiIndicator', true, 'Connected');
-            document.getElementById('midiDeviceName').textContent = device.name || 'Unknown Device';
-            document.getElementById('midiModal').classList.remove('show');
-            
-            log(`MIDI device connected: ${device.name}`, 'midi');
-            updateButtonStates();
-        }
-
-        function handleMIDIMessage(event) {
+        function handleExternalMIDI(event) {
             const [status, data1, data2] = event.data;
             const messageType = status & 0xF0;
-            const channel = status & 0x0F;
             
             if (messageType === 0x90 && data2 > 0) {
-                handleNoteOn(data1, data2);
-            } else if (messageType === 0x80 || (messageType === 0x90 && data2 === 0)) {
-                handleNoteOff(data1);
-            } else if (messageType === 0xE0) {
-                const pitchBendValue = (data2 << 7) | data1;
-                const bendAmount = (pitchBendValue - 8192) / 8192;
-                handlePitchBend(bendAmount);
-            } else if (messageType === 0xB0) {
-                handleControlChange(data1, data2);
-            }
-        }
-
-        let lastPonkeyBendSend = 0;
-        const PONKEY_BEND_THROTTLE = 50;
-
-        function handlePitchBend(bendAmount) {
-            applyPitchBend(bendAmount);
-            
-            const now = Date.now();
-            if (app.ponkeyCharacteristic && (now - lastPonkeyBendSend > PONKEY_BEND_THROTTLE)) {
-                try {
-                    const bendValue = Math.round((bendAmount + 1) * 63.5);
-                    const lsb = bendValue & 0x7F;
-                    const msb = (bendValue >> 7) & 0x7F;
-                    sendPonkeyMIDI(0xE0, lsb, msb);
-                    lastPonkeyBendSend = now;
-                } catch (error) {
-                    console.debug('Ponkey pitch bend send failed:', error.message);
+                // Note On from external MIDI
+                if (app.currentMode >= 4) {
+                    const ponkeyKey = data1 % 16;
+                    
+                    // Realtime OFF: play sound from Web App
+                    // Realtime ON: mute Web App (sound comes from PONKEY hardware)
+                    if (!app.realtimeActEnabled) {
+                        playSynthSound(ponkeyKey, app.currentMode - 4);
+                    }
+                    
+                    const keys = document.querySelectorAll('.round-key');
+                    if (keys[ponkeyKey]) {
+                        keys[ponkeyKey].classList.add('active');
+                        setTimeout(() => keys[ponkeyKey].classList.remove('active'), 200);
+                    }
+                    
+                    // Realtime Act: send to PONKEY hardware if enabled
+                    if (app.realtimeActEnabled && app.connected) {
+                        sendMIDI(0x90, ponkeyKey, data2);
+                        setTimeout(() => sendMIDI(0x80, ponkeyKey, 0), CONSTANTS.SOLENOID_DURATION);
+                    }
+                    
+                    // Trigger AI
+                    handleAINoteInput(data1, data2);
                 }
             }
         }
 
-        function handleControlChange(control, value) {
-            log(`MIDI CC: ${control} = ${value}`, 'midi');
-            
-            switch(control) {
-                case 1:
-                    handleModulation(value / 127);
-                    break;
-                case 7:
-                    handleVolume(value / 127);
-                    break;
-                case 64:
-                    handleSustain(value >= 64);
-                    break;
-                case 120:
-                    handleAllSoundOff();
-                    break;
-                case 123:
-                    handleAllNotesOff();
-                    break;
-                default:
-                    if (app.ponkeyCharacteristic) {
-                        try {
-                            sendPonkeyMIDI(0xB0, control, value);
-                        } catch (error) {
-                            console.debug('Ponkey CC send failed:', error.message);
+        // ========== BLE CONNECTION ==========
+        async function connectBLE() {
+            try {
+                log('BLE接続開始...');
+                app.device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [CONSTANTS.SERVICE_UUID] }]
+                });
+
+                const server = await app.device.gatt.connect();
+                const service = await server.getPrimaryService(CONSTANTS.SERVICE_UUID);
+                app.characteristic = await service.getCharacteristic(CONSTANTS.CHARACTERISTIC_UUID);
+
+                await app.characteristic.startNotifications();
+                app.characteristic.addEventListener('characteristicvaluechanged', onMIDI);
+
+                app.connected = true;
+                updateConnectionStatus();
+                document.getElementById('connectionModal').classList.remove('show');
+                log('✓ BLE接続成功');
+            } catch (error) {
+                log(`✗ BLE接続エラー: ${error}`);
+                alert('接続に失敗しました');
+            }
+        }
+
+        function sendMIDI(status, data1, data2) {
+            if (!app.connected || !app.characteristic) return;
+
+            const packet = new Uint8Array(5);
+            packet[0] = 0x80;
+            packet[1] = 0x80;
+            packet[2] = status;
+            packet[3] = data1;
+            packet[4] = data2 || 0;
+
+            app.characteristic.writeValue(packet);
+        }
+
+        function onMIDI(event) {
+            const data = new Uint8Array(event.target.value.buffer);
+            if (data.length < 3) return;
+
+            const status = data[2];
+            const command = status & 0xF0;
+            const data1 = data[3];
+            const data2 = data.length > 4 ? data[4] : 0;
+
+            if (command === 0x90) {
+                const note = data1;
+                if (note < 16 && app.currentMode >= 4) {
+                    playSynthSound(note, app.currentMode - 4);
+                    
+                    // Trigger AI from hardware input
+                    const midiNote = (app.currentOctave * 12) + note;
+                    handleAINoteInput(midiNote, data2);
+                    
+                    if (app.recordingLayer >= 0) {
+                        const timestamp = Date.now() - app.recordingStartTime;
+                        app.synthPatterns[app.recordingLayer].push({
+                            note: note,
+                            time: timestamp,
+                            played: false
+                        });
+                    }
+                }
+            }
+            else if (command === 0x80) {
+                // Note Off
+            }
+            else if (command === 0xB0) {
+                const control = data1;
+                const value = data2;
+
+                if (control === CONSTANTS.CC_BAR_SYNC) {
+                    const step = value;
+                    
+                    document.querySelectorAll('.round-key').forEach(btn => {
+                        btn.classList.remove('indicator');
+                    });
+                    document.querySelectorAll('.round-key')[step]?.classList.add('indicator');
+                    
+                    if (step === 0) {
+                        app.loopStartTime = Date.now();
+                        app.isPlaying = true;
+                        
+                        for (let layer = 4; layer < 8; layer++) {
+                            if (app.synthPatterns[layer]) {
+                                app.synthPatterns[layer].forEach(note => {
+                                    note.played = false;
+                                });
+                            }
                         }
                     }
+                    
+                    if (step < 16) {
+                        for (let part = 0; part < 4; part++) {
+                            if (app.rhythmPatterns[part][step]) {
+                                playDrumSound(part, audioContext.currentTime);
+                            }
+                        }
+                    }
+                    
+                    if (app.isPlaying && app.loopDuration > 0) {
+                        const currentLoopTime = Date.now() - app.loopStartTime;
+                        const loopPosition = currentLoopTime % app.loopDuration;
+                        const stepDuration = app.loopDuration / 16;
+                        const currentStepStart = step * stepDuration;
+                        const currentStepEnd = (step + 1) * stepDuration;
+                        
+                        for (let layer = 4; layer < 8; layer++) {
+                            const pattern = app.synthPatterns[layer];
+                            if (pattern && pattern.length > 0) {
+                                pattern.forEach(note => {
+                                    if (note.time >= currentStepStart && note.time < currentStepEnd && !note.played) {
+                                        playSynthSound(note.note, layer - 4);
+                                        
+                                        if (layer === app.currentMode) {
+                                            sendMIDI(0x90, note.note, 127);
+                                            setTimeout(() => {
+                                                sendMIDI(0x80, note.note, 0);
+                                            }, CONSTANTS.SOLENOID_DURATION);
+                                        }
+                                        
+                                        note.played = true;
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+                else if (control === CONSTANTS.CC_RECORDING_MODE) {
+                    const mode = value;
+                    if (mode > 0) {
+                        app.recordingLayer = mode;
+                        app.recordingStartTime = Date.now();
+                        app.synthPatterns[mode] = [];
+                        app.loopDuration = (60000 / app.bpm / 4) * 16;
+                        document.querySelectorAll('.square-key')[mode]?.classList.add('recording');
+                        log(`録音開始: ${CONSTANTS.MODE_NAMES[mode]}`);
+                    } else {
+                        if (app.recordingLayer >= 0) {
+                            document.querySelectorAll('.square-key')[app.recordingLayer]?.classList.remove('recording');
+                            log(`録音終了: ${CONSTANTS.MODE_NAMES[app.recordingLayer]}`);
+                            app.recordingLayer = -1;
+                        }
+                    }
+                }
+                else if (control < 8) {
+                    selectMode(control);
+                }
+                else if (control === 0x41) {
+                    app.bpm = 60 + value;
+                    document.getElementById('bpmSlider').value = app.bpm;
+                    document.getElementById('bpmDisplay').textContent = app.bpm;
+                }
+                else if (control === 0x42) {
+                    resetAllPatterns();
+                }
+                else if (control >= 16 && control < 32) {
+                    const keyIndex = control - 16;
+                    if (keyIndex < 16 && app.currentMode < 4) {
+                        app.rhythmPatterns[app.currentMode][keyIndex] = (value > 0);
+                        updateRoundKeys();
+                    }
+                }
             }
         }
 
-        function handleModulation(amount) {
-            if (amount > 0.1) {
-                log(`Modulation: ${(amount * 100).toFixed(1)}%`, 'midi');
-            }
-        }
-
-        function handleVolume(amount) {
-            log(`Volume: ${(amount * 100).toFixed(1)}%`, 'midi');
-        }
-
-        function handleSustain(isOn) {
-            log(`Sustain pedal: ${isOn ? 'ON' : 'OFF'}`, 'midi');
-        }
-
-        function handleAllSoundOff() {
-            log('All Sound Off received', 'midi');
-            app.activeOscillators.forEach((noteData, noteKey) => {
-                noteData.oscillators.forEach(oscData => {
-                    try {
-                        oscData.osc.stop();
-                    } catch (error) {}
-                });
+        function selectMode(mode) {
+            app.currentMode = mode;
+            document.querySelectorAll('.square-key').forEach((btn, i) => {
+                btn.classList.toggle('selected', i === mode);
             });
-            app.activeOscillators.clear();
+            updateRoundKeys();
+            log(`Mode: ${CONSTANTS.MODE_NAMES[mode]}`);
         }
 
-        function handleAllNotesOff() {
-            log('All Notes Off received', 'midi');
-            app.activeOscillators.forEach((noteData, noteKey) => {
-                noteData.oscillators.forEach(oscData => {
-                    try {
-                        const currentTime = app.audioContext.currentTime;
-                        oscData.gain.gain.exponentialRampToValueAtTime(0.001, currentTime + 0.1);
-                    } catch (error) {}
-                });
+        function updateRoundKeys() {
+            document.querySelectorAll('.round-key').forEach((btn, i) => {
+                if (app.currentMode < 4) {
+                    btn.classList.toggle('active', app.rhythmPatterns[app.currentMode][i]);
+                } else {
+                    btn.classList.remove('active');
+                }
             });
-            
-            setTimeout(() => {
-                app.activeOscillators.clear();
-            }, 150);
         }
 
-        function handleNoteOn(note, velocity) {
-            app.noteCount++;
-            document.getElementById('activityCounter').textContent = app.noteCount;
+        function resetAllPatterns() {
+            app.rhythmPatterns = app.rhythmPatterns.map(() => Array(16).fill(false));
+            app.synthPatterns = Array(8).fill(null).map(() => []);
+            app.aiInputSequence = [];
+            updateRoundKeys();
             
-            if (app.activeOscillators.has(note)) {
-                const existingNote = app.activeOscillators.get(note);
-                existingNote.oscillators.forEach(oscData => {
-                    try {
-                        oscData.osc.stop();
-                    } catch (error) {}
-                });
-                app.activeOscillators.delete(note);
-            }
-            
-            playPianoNote(note, velocity);
-            
-            const sequenceNote = {
-                pitch: note,
-                startTime: app.inputSequence.length * 0.5,
-                endTime: (app.inputSequence.length + 1) * 0.5,
-                velocity: velocity
-            };
-            
-            app.inputSequence.push(sequenceNote);
-            
-            if (app.inputSequence.length > 8) {
-                app.inputSequence.shift();
-                app.inputSequence.forEach((note, i) => {
-                    note.startTime = i * 0.5;
-                    note.endTime = (i + 1) * 0.5;
-                });
-            }
-            
-            visualizeNote(note, 'active');
-            
-            log(`Note On: ${note} (vel: ${velocity}) [seq: ${app.inputSequence.length}]`, 'midi');
-            
-            if (app.aiActive && isModelLoaded && app.inputSequence.length >= 2) {
-                scheduleAIResponse();
-            }
-        }
-
-        function handleNoteOff(note) {
-            app.activeOscillators.delete(note);
-        }
-
-        // AI Response
-        function scheduleAIResponse() {
-            const delay = parseInt(document.getElementById('responseDelay').value);
-            
-            setTimeout(() => {
-                generateMagentaResponse();
-            }, delay);
-        }
-
-        async function generateMagentaResponse() {
-            if (!isModelLoaded || !magentaModel || app.inputSequence.length === 0) {
-                log('Cannot generate response: Model not loaded or no input', 'ai');
-                return;
-            }
-
-            try {
-                log('Generating AI response...', 'ai');
+            if (app.connected) {
+                sendMIDI(0xB0, 0x42, 127);
                 
-                const temperature = parseFloat(document.getElementById('temperature').value);
-                const steps = parseInt(document.getElementById('responseSteps').value);
-                const swingAmount = parseInt(document.getElementById('swingAmount').value) / 100;
-                
-                // Create seed sequence
-                const seedSequence = {
-                    notes: app.inputSequence.slice(),
-                    totalTime: app.inputSequence.length * 0.5,
-                    ticksPerQuarter: 220
+                const clearPart = (part) => {
+                    if (part >= 4) {
+                        sendMIDI(0xB0, app.currentMode, 127);
+                        return;
+                    }
+                    sendMIDI(0xB0, part, 127);
+                    setTimeout(() => {
+                        for (let step = 0; step < 16; step++) {
+                            sendMIDI(0xB0, 16 + step, 0);
+                        }
+                        setTimeout(() => clearPart(part + 1), 50);
+                    }, 50);
                 };
                 
-                const quantizedSeed = core.sequences.quantizeNoteSequence(seedSequence, 4);
+                setTimeout(() => clearPart(0), 100);
+            }
+            
+            log('All patterns reset');
+        }
+
+        function initUI() {
+            // Round keys
+            const roundKeysContainer = document.getElementById('roundKeys');
+            for (let i = 0; i < 16; i++) {
+                const button = document.createElement('div');
+                button.className = 'round-key';
+                button.textContent = i + 1;
+                button.dataset.index = i;
                 
-                let continuation;
+                const handlePointerDown = () => {
+                    if (app.currentMode < 4) {
+                        app.rhythmPatterns[app.currentMode][i] = !app.rhythmPatterns[app.currentMode][i];
+                        updateRoundKeys();
+                        sendMIDI(0xB0, 16 + i, app.rhythmPatterns[app.currentMode][i] ? 127 : 0);
+                    } else {
+                        // Realtime OFF: play sound from Web App
+                        // Realtime ON: mute Web App (sound comes from PONKEY hardware)
+                        if (!app.realtimeActEnabled) {
+                            playSynthSound(i, app.currentMode - 4);
+                        }
+                        
+                        button.classList.add('active');
+                        
+                        // Realtime Act: send to PONKEY hardware if enabled
+                        if (app.realtimeActEnabled && app.connected) {
+                            sendMIDI(0x90, i, 127);
+                        }
+                        
+                        // Trigger AI from UI
+                        const midiNote = (app.currentOctave * 12) + i;
+                        handleAINoteInput(midiNote, 100);
+                    }
+                };
                 
-                if (currentModelType === 'improv_rnn') {
-                    // ImprovRNN needs chord progression
-                    const progressionKey = document.getElementById('chordProgression').value;
-                    const progression = CHORD_PROGRESSIONS[progressionKey];
-                    
-                    // Build chord string for the steps
-                    const chordSequence = [];
-                    let totalSteps = 0;
-                    while (totalSteps < steps) {
-                        for (const item of progression) {
-                            if (totalSteps >= steps) break;
-                            const stepsToAdd = Math.min(item.steps, steps - totalSteps);
-                            for (let i = 0; i < stepsToAdd; i++) {
-                                chordSequence.push(item.chord);
-                            }
-                            totalSteps += stepsToAdd;
+                const handlePointerUp = () => {
+                    if (app.currentMode >= 4) {
+                        button.classList.remove('active');
+                        // Realtime Act: send note off if enabled
+                        if (app.realtimeActEnabled && app.connected) {
+                            sendMIDI(0x80, i, 0);
                         }
                     }
-                    
-                    log(`Using chords: ${[...new Set(chordSequence.slice(0, 8))].join(' → ')}...`, 'ai');
-                    
-                    continuation = await magentaModel.continueSequence(
-                        quantizedSeed, 
-                        steps, 
-                        temperature,
-                        chordSequence
-                    );
-                } else {
-                    // MelodyRNN and AttentionRNN
-                    continuation = await magentaModel.continueSequence(quantizedSeed, steps, temperature);
-                }
+                };
                 
-                if (continuation && continuation.notes && continuation.notes.length > 0) {
-                    log(`Generated ${continuation.notes.length} notes!`, 'ai');
-                    
-                    // Apply swing
-                    if (swingAmount > 0) {
-                        continuation.notes = applySwing(continuation.notes, swingAmount);
-                    }
-                    
-                    // Add velocity variation for more human feel
-                    continuation.notes = addVelocityVariation(continuation.notes);
-                    
-                    playMagentaResponse(continuation.notes);
-                } else {
-                    log('No response generated', 'ai');
-                }
+                button.addEventListener('pointerdown', handlePointerDown);
+                button.addEventListener('pointerup', handlePointerUp);
+                button.addEventListener('pointercancel', handlePointerUp);
+                button.addEventListener('pointerleave', handlePointerUp);
                 
-            } catch (error) {
-                log(`Generation error: ${error.message}`, 'ai');
-                console.error('AI error:', error);
+                roundKeysContainer.appendChild(button);
             }
-        }
-
-        // Apply swing timing to notes
-        function applySwing(notes, amount) {
-            return notes.map((note, i) => {
-                const newNote = { ...note };
-                // Swing affects off-beat notes (odd 8th notes)
-                const beatPosition = (note.quantizedStartStep || 0) % 2;
-                if (beatPosition === 1) {
-                    // Delay off-beat notes
-                    const swingDelay = amount * 0.33; // Max 33% of beat
-                    if (newNote.startTime !== undefined) {
-                        newNote.startTime += swingDelay * 0.25;
-                    }
-                }
-                return newNote;
-            });
-        }
-
-        // Add velocity variation for jazz feel
-        function addVelocityVariation(notes) {
-            return notes.map((note, i) => {
-                const newNote = { ...note };
-                // Random variation ±20
-                const variation = (Math.random() - 0.5) * 40;
-                // Accent on beats 2 and 4 (jazz feel)
-                const beatPosition = (note.quantizedStartStep || i) % 4;
-                const accent = (beatPosition === 1 || beatPosition === 3) ? 15 : 0;
+            
+            // Square keys (mode buttons)
+            const squareKeysContainer = document.getElementById('squareKeys');
+            CONSTANTS.MODE_NAMES.forEach((name, i) => {
+                const button = document.createElement('div');
+                button.className = 'square-key';
+                button.textContent = name;
+                button.dataset.index = i;
                 
-                newNote.velocity = Math.max(40, Math.min(127, 
-                    (note.velocity || 80) + variation + accent
-                ));
-                return newNote;
-            });
-        }
-
-        function playMagentaResponse(notes) {
-            notes.forEach((note, index) => {
-                const delay = (note.startTime || index * 0.2) * 1000;
+                if (i === 0) button.classList.add('selected');
                 
-                setTimeout(() => {
-                    playPonkeySound(note.pitch);
-                    visualizeNote(note.pitch, 'ai-response');
-                    sendToPonkey(note.pitch, note.velocity || 80, true);
-                    
-                    setTimeout(() => {
-                        sendToPonkey(note.pitch, 0, true);
-                    }, 300);
-                    
-                    log(`AI: ${note.pitch} (vel: ${Math.round(note.velocity || 80)})`, 'ai');
-                }, delay);
-            });
-        }
-
-        // Ponkey Functions
-        async function connectPonkey() {
-            try {
-                document.getElementById('ponkeyModal').classList.add('show');
-                log('Requesting Ponkey device...', 'ponkey');
-                
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ 
-                        services: [PONKEY_SERVICE_UUID],
-                        name: 'Ponkey'
-                    }],
-                    optionalServices: [PONKEY_SERVICE_UUID]
+                button.addEventListener('pointerdown', () => {
+                    selectMode(i);
+                    sendMIDI(0xB0, i, 127);
                 });
                 
-                log(`Ponkey device found: ${device.name}`, 'ponkey');
+                squareKeysContainer.appendChild(button);
+            });
+            
+            // Transport controls
+            document.getElementById('playBtn').addEventListener('click', () => {
+                document.getElementById('playBtn').classList.add('active');
+                sendMIDI(0xB0, 0x40, 127);
+                log('Play');
+            });
+            
+            document.getElementById('stopBtn').addEventListener('click', () => {
+                document.getElementById('playBtn').classList.remove('active');
+                sendMIDI(0xB0, 0x40, 0);
+                document.querySelectorAll('.round-key').forEach(btn => {
+                    btn.classList.remove('indicator');
+                });
+                log('Stop');
+            });
+            
+            document.getElementById('resetBtn').addEventListener('click', resetAllPatterns);
+            
+            const bpmSlider = document.getElementById('bpmSlider');
+            const bpmDisplay = document.getElementById('bpmDisplay');
+            
+            bpmSlider.addEventListener('input', () => {
+                app.bpm = parseInt(bpmSlider.value);
+                bpmDisplay.textContent = app.bpm;
+                sendMIDI(0xB0, 0x41, app.bpm - 60);
+            });
+            
+            document.getElementById('tapBtn').addEventListener('click', () => {
+                const now = Date.now();
+                app.tapTimes = app.tapTimes.filter(t => now - t < CONSTANTS.TAP_TIMEOUT);
+                app.tapTimes.push(now);
                 
-                const server = await device.gatt.connect();
-                log('Connected to GATT server', 'ponkey');
+                if (app.tapTimes.length > 4) app.tapTimes.shift();
                 
-                const service = await server.getPrimaryService(PONKEY_SERVICE_UUID);
-                log('Got primary service', 'ponkey');
-                
-                app.ponkeyCharacteristic = await service.getCharacteristic(PONKEY_CHAR_UUID);
-                log('Got characteristic', 'ponkey');
-                
-                await app.ponkeyCharacteristic.startNotifications();
-                app.ponkeyCharacteristic.addEventListener('characteristicvaluechanged', handlePonkeyData);
-                
-                app.ponkeyDevice = device;
-                updateIndicator('ponkeyIndicator', true, 'Connected');
-                document.getElementById('ponkeyDeviceName').textContent = device.name;
-                document.getElementById('ponkeyModal').classList.remove('show');
-                
-                log('Ponkey connected successfully!', 'ponkey');
-                updateButtonStates();
-                
-            } catch (error) {
-                log(`Ponkey connection failed: ${error.message}`, 'ponkey');
-                document.getElementById('ponkeyModal').classList.remove('show');
-                
-                if (error.name === 'NotFoundError') {
-                    alert('Ponkeyデバイスが見つかりません。\n- Ponkeyの電源が入っているか確認してください\n- 他のデバイスに接続されていないか確認してください\n- 近くにあることを確認してください');
-                } else if (error.name === 'SecurityError') {
-                    alert('Bluetooth接続が拒否されました。\nHTTPSサイトまたはlocalhostで実行してください。');
-                } else {
-                    alert(`接続エラー: ${error.message}`);
+                if (app.tapTimes.length >= 2) {
+                    const intervals = [];
+                    for (let i = 1; i < app.tapTimes.length; i++) {
+                        intervals.push(app.tapTimes[i] - app.tapTimes[i-1]);
+                    }
+                    const avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
+                    const bpm = Math.round(60000 / avgInterval);
+                    
+                    if (bpm >= 60 && bpm <= 200) {
+                        app.bpm = bpm;
+                        bpmSlider.value = bpm;
+                        bpmDisplay.textContent = bpm;
+                        sendMIDI(0xB0, 0x41, bpm - 60);
+                    }
                 }
-            }
-        }
-
-        async function sendToPonkey(note, velocity, isAI) {
-            log(`sendToPonkey called: note=${note}, vel=${velocity}, isAI=${isAI}, connected=${!!app.ponkeyCharacteristic}`, 'ponkey');
+            });
             
-            if (!app.ponkeyCharacteristic) {
-                log('Ponkey not connected - skipping send', 'ponkey');
-                return;
-            }
+            document.getElementById('debugBtn').addEventListener('click', () => {
+                document.getElementById('debugLog').classList.toggle('visible');
+            });
             
-            const ponkeyKey = note % 16;
+            document.getElementById('soundsetSelector').addEventListener('change', (e) => {
+                app.currentSoundset = parseInt(e.target.value);
+                const soundsetNames = ['STANDARD', '8BIT', 'UNIQUE'];
+                log(`サウンドセット: ${soundsetNames[app.currentSoundset]}`);
+            });
             
-            try {
-                if (velocity > 0) {
-                    await sendPonkeyMIDI(0x90, ponkeyKey, velocity);
-                } else {
-                    await sendPonkeyMIDI(0x80, ponkeyKey, 0);
+            // AI Duet toggle
+            document.getElementById('aiDuetToggle').addEventListener('change', (e) => {
+                app.aiDuetEnabled = e.target.checked;
+                document.getElementById('aiSettingsPanel').classList.toggle('visible', e.target.checked);
+                log(`AI Duet: ${e.target.checked ? 'ON' : 'OFF'}`);
+                
+                if (e.target.checked) {
+                    app.aiInputSequence = [];
                 }
-                
-                log(`→ Ponkey Key ${ponkeyKey} ${velocity > 0 ? 'ON' : 'OFF'} (sent!)`, 'ponkey');
-            } catch (error) {
-                log(`Ponkey send error: ${error.message}`, 'ponkey');
+            });
+            
+            // Realtime Act toggle
+            document.getElementById('realtimeActToggle').addEventListener('change', (e) => {
+                app.realtimeActEnabled = e.target.checked;
+                log(`Realtime Act: ${e.target.checked ? 'ON' : 'OFF'}`);
+            });
+            
+            // AI Settings
+            document.getElementById('responseDelay').addEventListener('input', (e) => {
+                document.getElementById('responseDelayValue').textContent = e.target.value + 'ms';
+            });
+            
+            document.getElementById('temperature').addEventListener('input', (e) => {
+                document.getElementById('temperatureValue').textContent = e.target.value;
+            });
+            
+            document.getElementById('responseSteps').addEventListener('input', (e) => {
+                document.getElementById('responseStepsValue').textContent = e.target.value + ' steps';
+            });
+            
+            document.getElementById('keyboardOctave').addEventListener('change', (e) => {
+                app.currentOctave = parseInt(e.target.value);
+                log(`Octave: ${app.currentOctave}`);
+            });
+            
+            document.getElementById('connectBtn').addEventListener('click', connectBLE);
+            document.getElementById('closeModalBtn').addEventListener('click', () => {
+                document.getElementById('connectionModal').classList.remove('show');
+            });
+        }
+
+        function updateConnectionStatus() {
+            const status = document.getElementById('connectionStatus');
+            if (app.connected) {
+                status.textContent = '接続済み';
+                status.classList.add('connected');
+            } else {
+                status.textContent = '未接続';
+                status.classList.remove('connected');
             }
         }
 
-        async function sendPonkeyMIDI(status, data1, data2) {
-            if (!app.ponkeyCharacteristic) return;
-            
-            const packet = new Uint8Array([0x80, 0x80, status, data1, data2]);
-            await app.ponkeyCharacteristic.writeValue(packet);
-        }
-
-        function handlePonkeyData(event) {
-            const value = event.target.value;
-            log(`Ponkey data received: ${Array.from(new Uint8Array(value)).map(b => b.toString(16)).join(' ')}`, 'ponkey');
-        }
-
-        // Visualization
-        function initPianoRoll() {
-            const pianoRoll = document.getElementById('pianoRoll');
-            pianoRoll.innerHTML = '';
-            
-            for (let i = 0; i < 16; i++) {
-                const noteBar = document.createElement('div');
-                noteBar.className = 'note-bar';
-                noteBar.dataset.note = i;
-                pianoRoll.appendChild(noteBar);
-            }
-        }
-
-        function visualizeNote(midiNote, className) {
-            const noteIndex = midiNote % 16;
-            const noteBar = document.querySelector(`#pianoRoll [data-note="${noteIndex}"]`);
-            
-            if (noteBar) {
-                noteBar.classList.add(className);
-                setTimeout(() => {
-                    noteBar.classList.remove(className);
-                }, 1000);
-            }
-        }
-
-        // UI Control
-        function updateButtonStates() {
-            const keyboardReady = app.keyboardEnabled;
-            const midiConnected = !!app.midiInput;
-            const modelLoaded = isModelLoaded;
-            const canStart = (keyboardReady || midiConnected) && modelLoaded;
-            
-            document.getElementById('startDuetBtn').disabled = !canStart || app.aiActive;
-            document.getElementById('stopDuetBtn').disabled = !app.aiActive;
-        }
-
-        function startAIDuet() {
-            app.aiActive = true;
-            updateButtonStates();
-            log('AI Duet started - play some notes!', 'ai');
-        }
-
-        function stopAIDuet() {
-            app.aiActive = false;
-            updateButtonStates();
-            log('AI Duet stopped', 'ai');
-        }
-
-        function resetAll() {
-            app.inputSequence = [];
-            app.noteCount = 0;
-            document.getElementById('activityCounter').textContent = '0';
-            document.getElementById('logPanel').innerHTML = '';
-            log('System reset', 'info');
-        }
-
-        // Progress bar update
-        function updateProgress(percent, status) {
-            document.getElementById('progressBar').style.width = percent + '%';
-            document.getElementById('progressStatus').textContent = status;
-        }
-
-        // Auto initialization
-        async function autoInitialize() {
-            const selectedModel = document.getElementById('aiModel')?.value || 'improv_rnn';
-            currentModelType = selectedModel;
-            
-            try {
-                // Step 1: Check libraries
-                updateProgress(10, 'Checking Tone.js...');
-                await delay(300);
-                
-                if (typeof Tone === 'undefined') {
-                    throw new Error('Tone.js not loaded');
-                }
-                updateProgress(20, '✓ Tone.js loaded');
-                await delay(200);
-                
-                updateProgress(30, 'Checking TensorFlow.js...');
-                await delay(300);
-                
-                if (typeof tf === 'undefined') {
-                    throw new Error('TensorFlow.js not loaded');
-                }
-                updateProgress(40, '✓ TensorFlow.js loaded');
-                await delay(200);
-                
-                updateProgress(50, 'Checking Magenta.js...');
-                await delay(300);
-                
-                if (typeof core === 'undefined' || typeof music_rnn === 'undefined') {
-                    throw new Error('Magenta.js not loaded');
-                }
-                player = new core.Player();
-                updateProgress(60, '✓ Magenta.js loaded');
-                await delay(200);
-                
-                // Step 2: Load selected model
-                const modelName = {
-                    'melody_rnn': 'MelodyRNN',
-                    'attention_rnn': 'AttentionRNN', 
-                    'improv_rnn': 'ImprovRNN (Jazz)'
-                }[selectedModel];
-                
-                updateProgress(70, `Loading ${modelName}...`);
-                updateModelStatus('loading', `Loading ${modelName}...`);
-                
-                const modelUrl = MODEL_URLS[selectedModel];
-                magentaModel = new music_rnn.MusicRNN(modelUrl);
-                await magentaModel.initialize();
-                
-                isModelLoaded = true;
-                updateProgress(100, `✓ ${modelName} ready!`);
-                updateModelStatus('connected', `${modelName} Ready`);
-                
-                log(`✓ ${modelName} initialized!`, 'ai');
-                
-                // Hide loading section
-                await delay(500);
-                document.getElementById('loadingSection').style.display = 'none';
-                updateButtonStates();
-                updateChordProgressionVisibility();
-                
-            } catch (error) {
-                updateProgress(0, `❌ Error: ${error.message}`);
-                updateModelStatus('disconnected', 'Initialization Failed');
-                log(`Initialization error: ${error.message}`, 'ai');
-            }
-        }
-
-        // Reload model when changed
-        async function reloadModel() {
-            const selectedModel = document.getElementById('aiModel').value;
-            
-            if (selectedModel === currentModelType && isModelLoaded) {
-                log('Same model already loaded', 'ai');
-                document.getElementById('modelReloadSection').style.display = 'none';
-                return;
+        // Cleanup
+        window.addEventListener('beforeunload', () => {
+            if (audioContext) {
+                activeNodes.forEach(node => cleanupNode(node));
+                audioContext.close();
             }
             
-            // Dispose old model
-            if (magentaModel) {
-                try {
-                    magentaModel.dispose();
-                } catch (e) {
-                    console.log('Model dispose:', e);
-                }
+            if (app.device?.gatt?.connected) {
+                app.device.gatt.disconnect();
             }
-            
-            isModelLoaded = false;
-            currentModelType = selectedModel;
-            
-            // Show loading
-            document.getElementById('loadingSection').style.display = 'block';
-            document.getElementById('modelReloadSection').style.display = 'none';
-            
-            const modelName = {
-                'melody_rnn': 'MelodyRNN',
-                'attention_rnn': 'AttentionRNN',
-                'improv_rnn': 'ImprovRNN (Jazz)'
-            }[selectedModel];
-            
-            try {
-                updateProgress(50, `Loading ${modelName}...`);
-                updateModelStatus('loading', `Loading ${modelName}...`);
-                
-                const modelUrl = MODEL_URLS[selectedModel];
-                magentaModel = new music_rnn.MusicRNN(modelUrl);
-                await magentaModel.initialize();
-                
-                isModelLoaded = true;
-                updateProgress(100, `✓ ${modelName} ready!`);
-                updateModelStatus('connected', `${modelName} Ready`);
-                log(`✓ Switched to ${modelName}`, 'ai');
-                
-                await delay(500);
-                document.getElementById('loadingSection').style.display = 'none';
-                updateButtonStates();
-                
-            } catch (error) {
-                updateProgress(0, `❌ Error: ${error.message}`);
-                updateModelStatus('disconnected', 'Model Load Failed');
-                log(`Model load error: ${error.message}`, 'ai');
-            }
-        }
-
-        function updateChordProgressionVisibility() {
-            const selectedModel = document.getElementById('aiModel').value;
-            const chordGroup = document.getElementById('chordProgressionGroup');
-            chordGroup.style.display = (selectedModel === 'improv_rnn') ? 'flex' : 'none';
-        }
-
-        function delay(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
+        });
 
         // Initialize
-        function initUI() {
-            initPianoRoll();
+        window.addEventListener('DOMContentLoaded', () => {
+            initUI();
             initKeyboardInput();
-            initVirtualKeyboardClicks();
             
-            // Initialize audio on first click
             document.body.addEventListener('click', () => {
-                initAudioContext();
-                log('Audio system initialized', 'info');
+                initAudio();
             }, { once: true });
             
-            // Main controls
-            document.getElementById('connectMidiBtn').onclick = requestMIDIAccess;
-            document.getElementById('connectPonkeyBtn').onclick = connectPonkey;
-            document.getElementById('startDuetBtn').onclick = startAIDuet;
-            document.getElementById('stopDuetBtn').onclick = stopAIDuet;
-            document.getElementById('resetBtn').onclick = resetAll;
+            setTimeout(() => {
+                if (!app.connected) {
+                    document.getElementById('connectionModal').classList.add('show');
+                }
+            }, 500);
             
-            // Modal controls
-            document.getElementById('cancelMidiBtn').onclick = () => {
-                document.getElementById('midiModal').classList.remove('show');
-            };
-            document.getElementById('refreshMidiBtn').onclick = requestMIDIAccess;
-            document.getElementById('cancelPonkeyBtn').onclick = () => {
-                document.getElementById('ponkeyModal').classList.remove('show');
-            };
+            if (!navigator.bluetooth) {
+                log('⚠️ Web Bluetooth非対応');
+                alert('このブラウザはBLE非対応です。\nChromeまたはBluefyを使用してください。');
+            }
             
-            // Settings
-            document.getElementById('responseDelay').oninput = (e) => {
-                document.getElementById('responseDelayValue').textContent = e.target.value + 'ms';
-            };
-            document.getElementById('temperature').oninput = (e) => {
-                const val = parseFloat(e.target.value);
-                let emoji = '🎲';
-                if (val < 0.6) emoji = '🎯';
-                else if (val > 1.2) emoji = '🔥';
-                document.getElementById('temperatureValue').textContent = val + ' ' + emoji;
-            };
-            document.getElementById('responseSteps').oninput = (e) => {
-                document.getElementById('responseStepsValue').textContent = e.target.value + ' steps';
-            };
-            document.getElementById('swingAmount').oninput = (e) => {
-                const val = parseInt(e.target.value);
-                let emoji = '🎺';
-                if (val < 30) emoji = '🎸';
-                else if (val > 70) emoji = '🎷';
-                document.getElementById('swingAmountValue').textContent = val + '% ' + emoji;
-            };
+            // Auto-initialize Magenta
+            setTimeout(initMagenta, 1000);
             
-            // Model selection
-            document.getElementById('aiModel').onchange = (e) => {
-                updateChordProgressionVisibility();
-                document.getElementById('modelReloadSection').style.display = 'block';
-            };
-            document.getElementById('reloadModelBtn').onclick = reloadModel;
-            
-            updateButtonStates();
-            log('Ponkey AI Duet initialized', 'info');
-            log('Computer keyboard input enabled (A-K for notes, Z/X for octave)', 'keyboard');
-            
-            // Auto-initialize after short delay
-            setTimeout(autoInitialize, 500);
-        }
-
-        // Start
-        window.addEventListener('DOMContentLoaded', initUI);
-
-        // Check APIs
-        if (!navigator.requestMIDIAccess) {
-            console.warn('Web MIDI API not supported. Using computer keyboard.');
-        }
-        if (!navigator.bluetooth) {
-            console.warn('Web Bluetooth API not supported.');
-        }
+            // Try to connect external MIDI
+            initExternalMIDI();
+        });
     </script>
 </body>
 </html>
