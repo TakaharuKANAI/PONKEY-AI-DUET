@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>ponkey controller v2.6 AI</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90' font-weight='bold' fill='%23ff6600'>P</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='15' cy='85' r='8' fill='%23ff6600'/><rect x='30' y='20' width='18' height='65' fill='%23ff6600'/><path d='M 55 20 L 55 52.5 Q 55 70 70 70 Q 85 70 85 52.5 L 85 20 Z' fill='%23ff6600'/></svg>">
 
     <!-- Magenta.js dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.58/Tone.js"></script>
@@ -537,6 +537,13 @@
                     <span class="ai-toggle-slider realtime"></span>
                 </label>
             </div>
+            <div class="soundset-selector">
+                <label>MIDI IN</label>
+                <select id="midiInputSelector">
+                    <option value="">None</option>
+                </select>
+            </div>
+            <div class="connection-status" id="midiStatus" style="display:none;">MIDI: -</div>
         </div>
 
         <div class="ai-setup-bar" id="aiSetupBar">
@@ -1595,59 +1602,140 @@
         }
 
         // ========== EXTERNAL MIDI INPUT ==========
+        let midiAccess = null;
+        let midiInputs = [];
+
         async function initExternalMIDI() {
             if (!navigator.requestMIDIAccess) {
                 log('Web MIDI not supported');
                 return;
             }
-            
+
             try {
-                const midiAccess = await navigator.requestMIDIAccess();
-                const inputs = Array.from(midiAccess.inputs.values());
-                
-                inputs.forEach(input => {
-                    input.onmidimessage = handleExternalMIDI;
-                    log(`MIDI input: ${input.name}`);
+                midiAccess = await navigator.requestMIDIAccess();
+                midiInputs = Array.from(midiAccess.inputs.values());
+
+                const selector = document.getElementById('midiInputSelector');
+                const statusDiv = document.getElementById('midiStatus');
+
+                // Populate selector
+                selector.innerHTML = '<option value="">None</option>';
+                midiInputs.forEach((input, index) => {
+                    const option = document.createElement('option');
+                    option.value = input.id;
+                    option.textContent = input.name;
+                    selector.appendChild(option);
                 });
-                
-                if (inputs.length > 0) {
-                    app.midiInput = inputs[0];
+
+                if (midiInputs.length > 0) {
+                    selector.value = midiInputs[0].id;
+                    connectMIDIInput(midiInputs[0].id);
+                    statusDiv.style.display = 'block';
+                    log(`MIDI inputs found: ${midiInputs.length}`);
+                } else {
+                    log('No MIDI inputs found');
                 }
             } catch (error) {
                 log(`MIDI error: ${error.message}`);
             }
         }
 
+        function connectMIDIInput(inputId) {
+            // Disconnect all inputs
+            midiInputs.forEach(input => {
+                input.onmidimessage = null;
+            });
+
+            if (!inputId) {
+                app.midiInput = null;
+                document.getElementById('midiStatus').textContent = 'MIDI: None';
+                log('MIDI input disconnected');
+                return;
+            }
+
+            // Connect selected input
+            const input = midiInputs.find(i => i.id === inputId);
+            if (input) {
+                input.onmidimessage = handleExternalMIDI;
+                app.midiInput = input;
+                document.getElementById('midiStatus').textContent = `MIDI: ${input.name}`;
+                log(`MIDI input: ${input.name}`);
+            }
+        }
+
         function handleExternalMIDI(event) {
             const [status, data1, data2] = event.data;
             const messageType = status & 0xF0;
-            
+
             if (messageType === 0x90 && data2 > 0) {
                 // Note On from external MIDI
                 if (app.currentMode >= 4) {
                     const ponkeyKey = data1 % 16;
-                    
+
                     // Realtime OFF: play sound from Web App
                     // Realtime ON: mute Web App (sound comes from PONKEY hardware)
                     if (!app.realtimeActEnabled) {
                         playSynthSound(ponkeyKey, app.currentMode - 4);
                     }
-                    
+
                     const keys = document.querySelectorAll('.round-key');
                     if (keys[ponkeyKey]) {
                         keys[ponkeyKey].classList.add('active');
                         setTimeout(() => keys[ponkeyKey].classList.remove('active'), 200);
                     }
-                    
+
                     // Realtime Act: send to PONKEY hardware if enabled
                     if (app.realtimeActEnabled && app.connected) {
                         sendMIDI(0x90, ponkeyKey, data2);
                         setTimeout(() => sendMIDI(0x80, ponkeyKey, 0), CONSTANTS.SOLENOID_DURATION);
                     }
-                    
+
                     // Trigger AI
                     handleAINoteInput(data1, data2);
                 }
+            }
+            else if (messageType === 0xB0) {
+                // Control Change (CC) messages
+                handleMIDICC(data1, data2);
+            }
+        }
+
+        function handleMIDICC(cc, value) {
+            // CC mapping
+            if (cc === 1) {
+                // CC1 (Mod Wheel) -> BPM (60-200)
+                app.bpm = Math.round(60 + (value / 127) * 140);
+                document.getElementById('bpmSlider').value = app.bpm;
+                document.getElementById('bpmDisplay').textContent = app.bpm;
+                sendMIDI(0xB0, 0x41, app.bpm - 60);
+                log(`BPM: ${app.bpm} (CC1)`);
+            }
+            else if (cc === 14) {
+                // CC14 -> AI Temperature (0.3-1.5)
+                const temp = 0.3 + (value / 127) * 1.2;
+                document.getElementById('temperature').value = temp.toFixed(1);
+                document.getElementById('temperatureValue').textContent = temp.toFixed(1);
+                log(`Temperature: ${temp.toFixed(1)} (CC14)`);
+            }
+            else if (cc === 15) {
+                // CC15 -> AI Response Delay (300-2000ms)
+                const delay = Math.round(300 + (value / 127) * 1700);
+                document.getElementById('responseDelay').value = delay;
+                document.getElementById('responseDelayValue').textContent = delay + 'ms';
+                log(`Response Delay: ${delay}ms (CC15)`);
+            }
+            else if (cc === 16) {
+                // CC16 -> AI Response Steps (4-32)
+                const steps = Math.round(4 + (value / 127) * 28);
+                document.getElementById('responseSteps').value = steps;
+                document.getElementById('responseStepsValue').textContent = steps + ' steps';
+                log(`Response Steps: ${steps} (CC16)`);
+            }
+            else if (cc >= 20 && cc <= 27) {
+                // CC20-27 -> Mode selection (0-7)
+                const mode = cc - 20;
+                selectMode(mode);
+                sendMIDI(0xB0, mode, 127);
             }
         }
 
@@ -2032,7 +2120,12 @@
                 app.currentOctave = parseInt(e.target.value);
                 log(`Octave: ${app.currentOctave}`);
             });
-            
+
+            // MIDI Input Selector
+            document.getElementById('midiInputSelector').addEventListener('change', (e) => {
+                connectMIDIInput(e.target.value);
+            });
+
             document.getElementById('connectBtn').addEventListener('click', connectBLE);
             document.getElementById('closeModalBtn').addEventListener('click', () => {
                 document.getElementById('connectionModal').classList.remove('show');
